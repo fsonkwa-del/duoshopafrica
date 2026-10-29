@@ -20,6 +20,7 @@ import {
   errorSchema as error,
   requirePrincipal,
   requireSameOrigin,
+  writeLimit,
 } from "./guards";
 import { requireStaff } from "./staff";
 
@@ -242,6 +243,7 @@ export async function paymentRoutes(
   app.post(
     "/v1/orders/:orderId/payments",
     {
+      config: writeLimit,
       schema: {
         params: orderParams,
         body: {

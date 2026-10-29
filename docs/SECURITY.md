@@ -19,6 +19,10 @@ Navigateur non fiable ; API source de vérité ; webhook externe authentifié ; 
 
 Réduire PII dans logs/outbox ; repères/adresses privés ; localisation facultative. Audit actor/action/resource/tenant/request/time, sans mots de passe ou corps KYC ; droit INSERT seul pour runtime, export append-only et accès exceptionnel tracé à implémenter. Support et sécurité n'ont pas droits comptables implicites. Politique rétention, mineurs, consentement, portabilité et suppression à valider juridiquement ; pas de durée légale inventée. Email normalisé et preuve de vérification avant liaison Identity ; aucun lien automatique non vérifié.
 
+## Revue du 29/10/2026 (B10)
+
+Détail dans PILOT_READINESS.md. À traiter avant production : CSP (nonces Next.js ou reverse proxy), HSTS, trustProxy et rate limit partagé (Redis), antivirus des images, test d'intrusion externe.
+
 ## État et sortie
 
 Livré : générateur de tokens 256 bits avec hash SHA-256, sessions révocables vérifiées côté serveur (cookie __Host-session), logout avec contrôle Origin, OIDC Zitadel (PKCE S256, state lié au navigateur et à usage unique, nonce, issuer/audience vérifiés, email vérifié obligatoire, redirection interne seulement), attestation MFA par amr exigée sur toutes les routes du personnel, lecture inter-tenant réservée au personnel inscrit en base (RLS staff_read), séparation des tâches (pas de décision sur sa propre boutique), limitation 20/min/IP sur l'authentification, validation JSON stricte, erreurs sans détail interne, inactivité 30 min, logs sans query string, rôle runtime non-owner + RLS deny-by-default, audit append-only pour le runtime, RBAC boutique avec statut tenant, redaction logs. Ceci ne remplace pas une authentification. Avant activation métier : revue OWASP ASVS/Top 10, test IDOR, CSRF, permissions, rate-limit, sauvegarde/restauration, scan dépendances et revue indépendante. Aucune conclusion de conformité ou audit sécurité externe.

@@ -476,3 +476,32 @@ Priorité retenue : une commande payée était une impasse (ni préparation, ni 
 - **Aucun remboursement n'est exécuté** : il faut un PSP réel (capacité de remboursement, webhook de confirmation, écriture REFUND_PAYABLE → PSP_CLEARING).
 - Pas de logistique retour (étiquette, réception de l'article, remise en stock), pas de photos jointes (stockage S3), pas de rétrofacturation (chargeback).
 - Délai de 7 jours, base articles hors livraison et arbitrage par l'ADMIN : hypothèses à valider (conditions générales de vente).
+
+---
+
+# Sprint 11 — B10 Qualification du pilote — 29 octobre 2026
+
+Synthèse et décision dans [PILOT_READINESS.md](PILOT_READINESS.md) : **NO-GO** pour de l'argent réel (bloquants externes), **GO** pour une démonstration ou un test fermé en mode TEST.
+
+## Livré
+
+- **E2E Playwright 1.64.1**, version choisie pour correspondre au Chromium 1248 déjà présent sur le poste : aucun téléchargement de navigateur.
+  - Builds de production démarrés par la configuration ; données créées puis supprimées (préfixe `e2e-`, tenant `TEST-E2E`) ; sessions injectées comme au retour OIDC.
+  - Profils Pixel 7 et bureau ; axe-core 4.14.0.
+  - Fichiers : `playwright.config.ts`, `e2e/buyer-journey.spec.ts`, `e2e/quality.spec.ts`, `e2e/support/*`. Commande : `pnpm build && pnpm test:e2e`.
+- **Correctif mobile bloquant** (fieldset, `label` et `.stack` en grille rétrécissable, `max-width` des champs). Le test de largeur compare désormais à l'écran émulé.
+- **Rate limit** des écritures acheteur (60 par minute et par IP) : panier, adresses, devis, commande, paiement, réclamation.
+- `DATABASE_URL` déclarée dans `turbo.json`.
+
+## Commandes réellement exécutées
+
+- `pnpm test:e2e` : 42/42, deux fois. Premier passage 30/36, deux causes côté tests : pool PostgreSQL fermé trop tôt, cookie `__Host-` posé sur une URL http. Ensuite, le défaut mobile réel (bouton de confirmation inatteignable) a été diagnostiqué par trace Playwright et mesure DOM (522 px sur un écran de 412), puis corrigé.
+- Lint OK, typecheck 12/12 (un `spawn EPERM` passager de Turbo, revérifié), build 3/3, 59 tests unitaires.
+- `test:db` : 143 tests (base 19, API 122, worker 2), dont le nouveau test de rate limit (429 à la 61e requête).
+- Sauvegarde et restauration réelles (`pg_dump -Fc`, `pg_restore` dans une base neuve) : comparaison identique, RLS active, `prisma migrate status` à jour, base supprimée.
+- `pnpm audit --prod` : aucune vulnérabilité connue.
+
+## Limites
+
+- Les E2E ne tournent pas encore en CI. Pas de test de charge, pas de recette sur appareil réel, pas de test d'intrusion.
+- CSP, HSTS et trustProxy sont à configurer avec l'hébergement.

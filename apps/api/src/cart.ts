@@ -11,7 +11,7 @@ import {
   type CartStoreGroupDTO,
 } from "@duoshop/types";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { errorSchema as error, requireSameOrigin } from "./guards";
+import { errorSchema as error, requireSameOrigin, writeLimit } from "./guards";
 import { authenticate, readCookie } from "./session";
 
 export const MAX_CART_LINES = 50;
@@ -228,6 +228,7 @@ export async function cartRoutes(
   app.post(
     "/v1/cart/items",
     {
+      config: writeLimit,
       schema: {
         body: {
           type: "object",

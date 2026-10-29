@@ -19,5 +19,6 @@ Node 24 LTS recommandé (voir .nvmrc), pnpm 12.15.0.
 
 `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` forment les contrôles locaux.
 `pnpm test:db` nécessite une base locale migrée et vérifie les contraintes d'isolation.
+`pnpm build && pnpm test:e2e` exécute les parcours Playwright (mobile et bureau, accessibilité axe) sur les builds de production ; voir docs/OPERATIONS.md.
 Identité : Zitadel via OIDC (ADR 0005, runbook local dans OPERATIONS.md), configuré par `OIDC_ISSUER` et `OIDC_CLIENT_ID`. Sans Zitadel, `pnpm dev:session nom@example.invalid` émet une session DEV sur la boutique DEMO avec un lien /dev-login (désactivé en production).
 Les tests unitaires ne prouvent pas l'isolation d'une future API : voir TEST_PLAN.md.

@@ -11,6 +11,18 @@
 * {
   box-sizing: border-box;
 }
+/* Écrans étroits : un fieldset ne rétrécit pas sous son contenu (min-width: min-content par défaut)
+   et un select prend la largeur de sa plus longue option ; sans ces règles, une adresse longue
+   élargit la page, le mobile dézoome et les boutons deviennent inaccessibles (vu en E2E). */
+fieldset {
+  min-width: 0;
+}
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
 body {
   margin: 0;
   background: var(--background);
@@ -186,12 +198,17 @@ footer {
   display: grid;
   gap: var(--space-3);
 }
+.stack {
+  grid-template-columns: minmax(0, 1fr);
+}
 .filters {
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
 }
 label {
   display: grid;
+  /* Colonne autorisée à rétrécir : sinon la plus longue option d'un select impose sa largeur. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
   font-weight: 600;
 }

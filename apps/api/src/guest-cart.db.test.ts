@@ -223,3 +223,24 @@ describe("guest cart (before any account)", () => {
     );
   });
 });
+
+describe("abuse protection", () => {
+  test("buyer writes are rate limited per client (60 per minute)", async () => {
+    const limited = await createApp({ db, webOrigin });
+    const statuses: number[] = [];
+    for (let i = 0; i < 61; i++)
+      statuses.push(
+        (
+          await limited.inject({
+            method: "POST",
+            url: "/v1/cart/items",
+            headers: { origin: webOrigin },
+            payload: { variantId: randomUUID(), quantity: 1 },
+          })
+        ).statusCode,
+      );
+    await limited.close();
+    assert.ok(statuses.slice(0, 60).every((s) => s !== 429));
+    assert.equal(statuses[60], 429);
+  });
+});

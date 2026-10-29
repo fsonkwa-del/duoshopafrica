@@ -31,6 +31,7 @@ import {
   errorSchema as error,
   requirePrincipal,
   requireSameOrigin,
+  writeLimit,
 } from "./guards";
 import { paymentView } from "./payments";
 import { readCookie } from "./session";
@@ -400,6 +401,7 @@ export async function orderRoutes(
   app.post(
     "/v1/addresses",
     {
+      config: writeLimit,
       schema: {
         body: {
           type: "object",
@@ -543,6 +545,7 @@ export async function orderRoutes(
   app.post(
     "/v1/checkout/quote",
     {
+      config: writeLimit,
       schema: {
         body: {
           type: "object",
@@ -582,6 +585,7 @@ export async function orderRoutes(
   app.post(
     "/v1/orders",
     {
+      config: writeLimit,
       schema: {
         body: {
           type: "object",

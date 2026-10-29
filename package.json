@@ -19,13 +19,18 @@
     "db:deploy": "pnpm --filter @duoshop/database migrate:deploy",
     "db:seed": "pnpm --filter @duoshop/database seed",
     "dev:session": "pnpm --filter @duoshop/database dev:session",
-    "platform:grant": "pnpm --filter @duoshop/database platform:grant"
+    "platform:grant": "pnpm --filter @duoshop/database platform:grant",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@biomejs/biome": "2.6.3",
+    "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
-    "turbo": "2.11.10",
+    "@types/pg": "8.15.6",
+    "pg": "8.23.1",
     "tsx": "4.23.15",
+    "turbo": "2.11.10",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
   }

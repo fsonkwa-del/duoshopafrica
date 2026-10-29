@@ -5,6 +5,7 @@ import {
   errorSchema as error,
   requirePrincipal,
   requireSameOrigin,
+  writeLimit,
 } from "./guards";
 import { requireStaff } from "./staff";
 import { inStore } from "./store-scope";
@@ -94,6 +95,7 @@ export async function claimRoutes(
   app.post(
     "/v1/orders/:orderId/claims",
     {
+      config: writeLimit,
       schema: {
         params: {
           type: "object",

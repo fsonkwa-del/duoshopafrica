@@ -69,3 +69,16 @@ L'adaptateur Prisma envoie les dates sans fuseau. `createDatabase` force `TimeZo
 - Le worker exécute `purge_guest_carts` avec la purge des tentatives de connexion (toutes les 15 min) : il supprime les paniers visiteurs inactifs depuis plus de 30 jours.
 - `DEV_LOGIN_ENABLED=true` : profils de démonstration (`/fr/dev-login`), en local seulement ; le démarrage de l'API échoue si `NODE_ENV=production`.
 - Zitadel (staging et production) : activer l'auto-inscription dans la politique de connexion pour que « Créer mon compte » fonctionne au checkout.
+
+## Tests de bout en bout (Playwright)
+
+- Prérequis : PostgreSQL local démarré, ports 3000 et 4000 libres, `pnpm build`.
+- `pnpm test:e2e` démarre l'API (adaptateur MOCK) et `next start`, prépare les données `TEST-E2E`, exécute les profils Pixel 7 et bureau, puis nettoie tout. Résultats et traces en cas d'échec : `.local/e2e-results/`.
+- Navigateur : Chromium 1248, déjà installé ; `@playwright/test` est figé en 1.64.1 pour lui correspondre.
+
+## Sauvegarde et restauration (procédure testée le 29/10/2026)
+
+1. `pg_dump -h <hôte> -U <propriétaire> -d <base> -Fc -f duoshop.dump`
+2. `createdb <base_vérif>` puis `pg_restore -d <base_vérif> --no-owner --exit-on-error duoshop.dump`. Le rôle `duoshop_app` doit exister dans le cluster cible : il est créé par la migration `runtime_role_rls`.
+3. Contrôles : `prisma migrate status` à jour ; mêmes nombres de migrations, commandes et lignes de journal ; solde du journal = 0 ; politiques RLS et déclencheurs présents ; `SET ROLE duoshop_app` sans contexte ne voit aucune commande.
+4. En production : sauvegardes managées avec PITR et test de restauration mensuel, RPO/RTO à fixer avec l'hébergeur.

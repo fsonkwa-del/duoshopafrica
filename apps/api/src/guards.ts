@@ -28,3 +28,7 @@ export async function requireSameOrigin(
   await reply.code(403).send({ error: "origin_rejected" });
   return false;
 }
+
+// Écritures acheteur (panier, adresses, devis, commande, paiement, réclamation) : frein aux abus.
+// Compté par IP : derrière un reverse proxy, configurer trustProxy pour obtenir l'IP réelle.
+export const writeLimit = { rateLimit: { max: 60, timeWindow: 60_000 } };
