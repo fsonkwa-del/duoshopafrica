@@ -1,0 +1,32 @@
+{
+  "name": "duoshopafrica",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=24.0.0 <27"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "vitest run",
+    "test:db": "pnpm --filter @duoshop/database --filter @duoshop/api --filter @duoshop/worker --workspace-concurrency=1 test:db",
+    "db:generate": "pnpm --filter @duoshop/database generate",
+    "db:validate": "pnpm --filter @duoshop/database validate",
+    "db:deploy": "pnpm --filter @duoshop/database migrate:deploy",
+    "db:seed": "pnpm --filter @duoshop/database seed",
+    "dev:session": "pnpm --filter @duoshop/database dev:session",
+    "platform:grant": "pnpm --filter @duoshop/database platform:grant"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@types/node": "24.19.2",
+    "turbo": "2.11.10",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@duoshop/database",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "validate": "prisma validate",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "tsx src/seed.ts",
+    "dev:session": "tsx src/dev-session.ts",
+    "test:db": "tsx --test --test-concurrency=1 src/isolation.db.test.ts src/rls.db.test.ts src/maintenance.db.test.ts src/inventory.db.test.ts",
+    "typecheck": "tsc --noEmit",
+    "platform:grant": "tsx src/platform-grant.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "7.10.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "pg": "8.23.1",
+    "dotenv": "17.2.3"
+  },
+  "devDependencies": {
+    "prisma": "7.10.1",
+    "@types/pg": "8.15.6"
+  }
+}

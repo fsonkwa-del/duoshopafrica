@@ -1,0 +1,35 @@
+{
+  "name": "@duoshop/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/main.js --external:fastify --external:@fastify/* --external:@prisma/* --external:pg --external:dotenv --external:sharp --external:@aws-sdk/*",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "test:db": "tsx --test --test-concurrency=1 src/account.db.test.ts src/oidc.db.test.ts src/merchant.db.test.ts src/catalog.db.test.ts src/storefront.db.test.ts src/media.db.test.ts src/orders.db.test.ts src/payments.db.test.ts src/dev-login.db.test.ts src/guest-cart.db.test.ts src/fulfilment.db.test.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
+    "@aws-sdk/s3-request-presigner": "3.1152.0",
+    "@duoshop/config": "workspace:*",
+    "@duoshop/database": "workspace:*",
+    "@duoshop/domain": "workspace:*",
+    "@duoshop/media": "workspace:*",
+    "@duoshop/payments": "workspace:*",
+    "@duoshop/types": "workspace:*",
+    "@fastify/rate-limit": "11.2.1",
+    "@fastify/swagger": "9.9.2",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "dotenv": "17.2.3",
+    "fastify": "5.12.7",
+    "openid-client": "6.8.8",
+    "pg": "8.23.1",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "jose": "6.2.12"
+  }
+}

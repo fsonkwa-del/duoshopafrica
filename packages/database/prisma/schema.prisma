@@ -1,0 +1,637 @@
+generator client {
+  provider = "prisma-client"
+  output = "../generated"
+}
+datasource db {
+  provider = "postgresql"
+}
+enum TenantStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+// Personnel plateforme : SUPPORT consulte, ADMIN décide. Toujours MFA (vérifié par l'API).
+enum PlatformRole {
+  ADMIN
+  SUPPORT
+}
+enum VerificationStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+enum StockMovementReason {
+  RECEIPT
+  ADJUSTMENT
+  SALE
+}
+enum ReservationStatus {
+  ACTIVE
+  RELEASED
+  CONSUMED
+}
+enum MediaStatus {
+  PENDING
+  READY
+  REJECTED
+}
+enum OrderStatus {
+  AWAITING_PAYMENT
+  PAID
+  CANCELLED
+  EXPIRED
+}
+enum PaymentMethodKind {
+  MOBILE_MONEY
+  CARD
+  BANK_TRANSFER
+  WALLET
+}
+// MOCK : simulateur local sans argent ; SANDBOX : test prestataire ; LIVE : production.
+enum PaymentMode {
+  MOCK
+  SANDBOX
+  LIVE
+}
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+}
+enum ProviderEventOutcome {
+  APPLIED
+  DUPLICATE
+  QUARANTINED
+  ORPHAN
+  IGNORED
+}
+enum DeliveryMethod {
+  HOME_DELIVERY
+  PICKUP
+}
+// Préparation et remise d'une sous-commande payée (B07).
+enum FulfilmentStatus {
+  AWAITING_PAYMENT
+  TO_PREPARE
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERY_FAILED
+  DELIVERED
+}
+enum StoreRole {
+  OWNER
+  MANAGER
+  CATALOG
+  FULFILLMENT
+}
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  identities Identity[]
+  sessions Session[]
+  memberships StoreMember[]
+  platform PlatformMember?
+  cart Cart?
+  addresses Address[]
+  orders Order[]
+  payments Payment[]
+  notifications Notification[]
+}
+model PlatformMember {
+  userId String @id @db.Uuid
+  role PlatformRole
+  active Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+model Identity {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  issuer String
+  subject String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@unique([issuer, subject])
+  @@index([userId])
+}
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tokenHash String @unique @db.Char(64)
+  expiresAt DateTime @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  lastSeenAt DateTime @default(now()) @db.Timestamptz(3)
+  // Vrai seulement si le fournisseur d'identité atteste un second facteur (claim amr).
+  mfa Boolean @default(false)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+}
+// Tentative OIDC à usage unique : state haché, liée au navigateur par cookie, expirée en 10 min.
+model LoginAttempt {
+  id String @id @default(uuid()) @db.Uuid
+  stateHash String @unique @db.Char(64)
+  nonce String
+  codeVerifier String
+  returnTo String
+  expiresAt DateTime @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([expiresAt])
+}
+model Role {
+  id String @id
+  permissions RolePermission[]
+}
+model Permission {
+  id String @id
+  roles RolePermission[]
+}
+model RolePermission {
+  roleId String
+  permissionId String
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+}
+model Tenant {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  status TenantStatus @default(PENDING)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  stores Store[]
+  audits AuditLog[]
+  outbox OutboxEvent[]
+}
+model Store {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  slug String @unique
+  name String
+  isDemo Boolean @default(false)
+  // Options de remise fixées par le vendeur ; absentes => option indisponible au checkout.
+  deliveryFeeMinor BigInt?
+  pickupEnabled Boolean @default(false)
+  pickupInstructions String?
+  version Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  members StoreMember[]
+  verification MerchantVerification?
+  products Product[]
+  locations InventoryLocation[]
+  sellerOrders SellerOrder[]
+  @@unique([tenantId, id])
+}
+model StoreMember {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  storeId String @db.Uuid
+  userId String @db.Uuid
+  role StoreRole
+  active Boolean @default(true)
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@unique([tenantId, storeId, userId])
+  @@index([userId])
+}
+model MerchantVerification {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  storeId String @unique @db.Uuid
+  status VerificationStatus @default(PENDING)
+  // Informations déclaratives minimales ; pièces justificatives après politique de rétention validée.
+  legalName String?
+  registrationNumber String?
+  submittedAt DateTime? @db.Timestamptz(3)
+  decisionReason String?
+  reviewedBy String? @db.Uuid
+  reviewedAt DateTime? @db.Timestamptz(3)
+  version Int @default(0)
+  @@unique([tenantId, storeId])
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+}
+model Country {
+  code String @id @db.Char(2)
+  name String
+  enabled Boolean @default(false)
+}
+model Currency {
+  code String @id @db.Char(3)
+  minorUnits Int
+  variants ProductVariant[]
+}
+model Locale {
+  code String @id
+  direction String @default("ltr")
+}
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  actorId String
+  action String
+  resourceId String
+  requestId String
+  // Détail figé de la décision (motif, transition) : l'audit reste lisible si la ligne métier change.
+  detail Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  @@index([tenantId, createdAt])
+}
+model OutboxEvent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  kind String
+  aggregateId String
+  version Int @default(1)
+  payload Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  processedAt DateTime? @db.Timestamptz(3)
+  attempts Int @default(0)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  @@index([processedAt, createdAt])
+}
+
+// Catalogue et stock : chaque lien inclut tenantId (clés composites) en plus de la RLS.
+model Product {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  storeId String @db.Uuid
+  title String
+  description String?
+  status ProductStatus @default(DRAFT)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  publishedAt DateTime? @db.Timestamptz(3)
+  // Colonne générée (migration) : titre + description sans accents, pour la recherche plein texte.
+  search Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, search_unaccent(((COALESCE(title, ''::text) || ' '::text) || COALESCE(description, ''::text))))"))
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  variants ProductVariant[]
+  media ProductMedia[]
+  @@unique([tenantId, id])
+  @@index([storeId, status])
+  @@index([search], type: Gin)
+}
+model ProductVariant {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  productId String @db.Uuid
+  sku String
+  label String
+  // Montant en unités mineures de la devise (XAF : 0 décimale), jamais en flottant.
+  priceMinor BigInt
+  currency String @db.Char(3)
+  active Boolean @default(true)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  product Product @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
+  currencyRef Currency @relation(fields: [currency], references: [code], onDelete: Restrict)
+  stock StockLevel[]
+  movements StockMovement[]
+  reservations StockReservation[]
+  cartItems CartItem[]
+  @@unique([tenantId, id])
+  @@unique([tenantId, sku])
+  @@index([productId])
+}
+model InventoryLocation {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  storeId String @db.Uuid
+  name String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  stock StockLevel[]
+  movements StockMovement[]
+  reservations StockReservation[]
+  @@unique([tenantId, id])
+  @@unique([storeId, name])
+}
+// Disponible = onHand - reserved ; contraintes CHECK en base (migration) : jamais négatif.
+model StockLevel {
+  tenantId String @db.Uuid
+  variantId String @db.Uuid
+  locationId String @db.Uuid
+  onHand Int @default(0)
+  reserved Int @default(0)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  variant ProductVariant @relation(fields: [tenantId, variantId], references: [tenantId, id], onDelete: Restrict)
+  location InventoryLocation @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Restrict)
+  @@id([variantId, locationId])
+  @@index([tenantId])
+}
+// Journal append-only : le runtime insère, ne modifie ni ne supprime.
+model StockMovement {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  variantId String @db.Uuid
+  locationId String @db.Uuid
+  delta Int
+  reason StockMovementReason
+  note String?
+  actorId String @db.Uuid
+  idempotencyKey String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  variant ProductVariant @relation(fields: [tenantId, variantId], references: [tenantId, id], onDelete: Restrict)
+  location InventoryLocation @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Restrict)
+  @@unique([tenantId, idempotencyKey])
+  @@index([variantId, createdAt])
+}
+// Réservation de stock pour panier/checkout (B05) ; référence = clé d'idempotence.
+model StockReservation {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  variantId String @db.Uuid
+  locationId String @db.Uuid
+  quantity Int
+  reference String
+  status ReservationStatus @default(ACTIVE)
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  releasedAt DateTime? @db.Timestamptz(3)
+  variant ProductVariant @relation(fields: [tenantId, variantId], references: [tenantId, id], onDelete: Restrict)
+  location InventoryLocation @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Restrict)
+  @@unique([tenantId, reference])
+  @@index([status, expiresAt])
+}
+// Journal des opérations d'exploitation hors tenant (attribution de rôles plateforme).
+model PlatformAudit {
+  id String @id @default(uuid()) @db.Uuid
+  operator String
+  action String
+  targetUserId String @db.Uuid
+  detail Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([targetUserId, createdAt])
+}
+
+// Photos (ADR 0006) : envoi en quarantaine, traitement par le worker, publication si READY.
+model ProductMedia {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  productId String @db.Uuid
+  position Int @default(0)
+  status MediaStatus @default(PENDING)
+  uploadKey String @unique
+  publicKey String?
+  altFr String
+  altEn String
+  width Int?
+  height Int?
+  bytes Int?
+  rejectReason String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  processedAt DateTime? @db.Timestamptz(3)
+  product Product @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
+  @@index([productId, position])
+  @@index([status, createdAt])
+}
+// Panier acheteur : données personnelles, isolées par utilisateur (RLS), aucune réservation de stock.
+// Panier d'un compte (userId) ou d'un visiteur (empreinte SHA-256 du jeton du cookie __Host-cart),
+// jamais les deux ; le panier visiteur est fusionné dans celui du compte à la connexion.
+model Cart {
+  id String @id @default(uuid()) @db.Uuid
+  userId String? @unique @db.Uuid
+  guestTokenHash String? @unique @db.Char(64)
+  currency String @default("XAF") @db.Char(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+}
+model CartItem {
+  id String @id @default(uuid()) @db.Uuid
+  cartId String @db.Uuid
+  variantId String @db.Uuid
+  quantity Int
+  // Prix vu par l'acheteur à l'ajout : sert à signaler un changement, jamais à facturer.
+  addedPriceMinor BigInt
+  addedAt DateTime @default(now()) @db.Timestamptz(3)
+  cart Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  @@unique([cartId, variantId])
+}
+
+// Adresse acheteur adaptée aux usages locaux : quartier et repère obligatoires, GPS facultatif.
+model Address {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  label String
+  recipientName String
+  phone String
+  city String
+  district String
+  landmark String
+  details String?
+  // Facultatif, arrondi à 4 décimales (~11 m) : localisation limitée au besoin de livraison.
+  latitude Decimal? @db.Decimal(7, 4)
+  longitude Decimal? @db.Decimal(7, 4)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  archivedAt DateTime? @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+// Commande acheteur (multi-vendeurs). Montants figés à la création ; aucun statut « payé » sans PSP.
+model Order {
+  id String @id @default(uuid()) @db.Uuid
+  buyerId String @db.Uuid
+  status OrderStatus @default(AWAITING_PAYMENT)
+  currency String @db.Char(3)
+  itemsTotalMinor BigInt
+  deliveryTotalMinor BigInt
+  totalMinor BigInt
+  idempotencyKey String
+  requestHash String @db.Char(64)
+  addressSnapshot Json?
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  closedAt DateTime? @db.Timestamptz(3)
+  paidAt DateTime? @db.Timestamptz(3)
+  buyer User @relation(fields: [buyerId], references: [id], onDelete: Restrict)
+  sellerOrders SellerOrder[]
+  payments Payment[]
+  @@unique([buyerId, idempotencyKey])
+  @@index([status, expiresAt])
+}
+// Sous-commande d'un vendeur : visible du vendeur (tenant) et de l'acheteur (propriétaire).
+model SellerOrder {
+  id String @id @default(uuid()) @db.Uuid
+  orderId String @db.Uuid
+  tenantId String @db.Uuid
+  storeId String @db.Uuid
+  // Nom figé : l'acheteur lit sa commande même si la boutique quitte la vitrine ensuite.
+  storeName String
+  status OrderStatus @default(AWAITING_PAYMENT)
+  deliveryMethod DeliveryMethod
+  deliveryFeeMinor BigInt
+  itemsTotalMinor BigInt
+  pickupInstructions String?
+  // Contact de livraison copié au paiement confirmé, jamais avant (données personnelles).
+  deliveryContact Json?
+  fulfilmentStatus FulfilmentStatus @default(AWAITING_PAYMENT)
+  fulfilmentVersion Int @default(0)
+  // Codes de remise erronés saisis ; au-delà de 5, la remise est bloquée (support).
+  handoverAttempts Int @default(0)
+  deliveredAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  items OrderItem[]
+  handover HandoverCode?
+  events FulfilmentEvent[]
+  @@unique([tenantId, id])
+  @@index([storeId, createdAt])
+  @@index([orderId])
+}
+model OrderItem {
+  id String @id @default(uuid()) @db.Uuid
+  sellerOrderId String @db.Uuid
+  tenantId String @db.Uuid
+  variantId String @db.Uuid
+  title String
+  label String
+  quantity Int
+  unitPriceMinor BigInt
+  currency String @db.Char(3)
+  lineTotalMinor BigInt
+  reservationRef String
+  sellerOrder SellerOrder @relation(fields: [tenantId, sellerOrderId], references: [tenantId, id], onDelete: Restrict)
+  @@index([sellerOrderId])
+}
+
+// ---------- Paiements (B06, ADR 0007) ----------
+// Moyen de paiement paramétré par l'administration : opérateur, pays, devise, plafonds, libellés.
+// Les secrets restent dans l'environnement ; « provider » désigne seulement une clé d'adaptateur.
+model PaymentMethod {
+  id String @id @default(uuid()) @db.Uuid
+  code String @unique
+  kind PaymentMethodKind
+  operator String?
+  provider String
+  countryCode String @db.Char(2)
+  currency String @db.Char(3)
+  labelFr String
+  labelEn String
+  instructionsFr String?
+  instructionsEn String?
+  // Préfixes E.164 acceptés pour cet opérateur (ex. +23767), fixés par l'administration.
+  phonePrefixes String[] @default([])
+  minAmountMinor BigInt @default(1)
+  maxAmountMinor BigInt?
+  displayOrder Int @default(100)
+  enabled Boolean @default(false)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  payments Payment[]
+  @@index([countryCode, currency, enabled])
+}
+model Payment {
+  id String @id @default(uuid()) @db.Uuid
+  orderId String @db.Uuid
+  buyerId String @db.Uuid
+  methodId String @db.Uuid
+  methodCode String
+  provider String
+  mode PaymentMode
+  amountMinor BigInt
+  currency String @db.Char(3)
+  status PaymentStatus @default(PENDING)
+  idempotencyKey String
+  payerPhone String?
+  providerReference String?
+  nextAction Json?
+  failureCode String?
+  // Paiement réussi qui ne peut pas confirmer la commande (commande close, doublon, stock) :
+  // remboursement ou décision manuelle obligatoire.
+  attentionReason String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  settledAt DateTime? @db.Timestamptz(3)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  buyer User @relation(fields: [buyerId], references: [id], onDelete: Restrict)
+  method PaymentMethod @relation(fields: [methodId], references: [id], onDelete: Restrict)
+  events ProviderEvent[]
+  @@unique([orderId, idempotencyKey])
+  @@unique([provider, providerReference])
+  @@index([orderId, createdAt])
+  @@index([status, createdAt])
+}
+// Webhook vérifié et persisté avant tout effet ; doublons et contradictions restent traçables.
+model ProviderEvent {
+  id String @id @default(uuid()) @db.Uuid
+  provider String
+  eventId String
+  payloadHash String @db.Char(64)
+  payload Json
+  paymentId String? @db.Uuid
+  reportedStatus String
+  amountMinor BigInt
+  currency String @db.Char(3)
+  occurredAt DateTime @db.Timestamptz(3)
+  receivedAt DateTime @default(now()) @db.Timestamptz(3)
+  outcome ProviderEventOutcome
+  detail String?
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  @@unique([provider, eventId, payloadHash])
+  @@index([outcome, receivedAt])
+  @@index([paymentId])
+}
+// Historique des changements de configuration plateforme (moyens de paiement, etc.).
+model ConfigAudit {
+  id String @id @default(uuid()) @db.Uuid
+  actorId String @db.Uuid
+  entity String
+  entityId String @db.Uuid
+  action String
+  before Json?
+  after Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([entity, entityId, createdAt])
+}
+
+// ---------- Livraison et suivi (B07) ----------
+// Code de remise : lisible par l'acheteur seul (RLS), vérifié côté base à la remise.
+model HandoverCode {
+  sellerOrderId String @id @db.Uuid
+  buyerId String @db.Uuid
+  code String @db.Char(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  sellerOrder SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+}
+// Historique daté des étapes, visible du vendeur (tenant) et de l'acheteur.
+model FulfilmentEvent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  sellerOrderId String @db.Uuid
+  orderId String @db.Uuid
+  status FulfilmentStatus
+  note String?
+  actorId String? @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  sellerOrder SellerOrder @relation(fields: [tenantId, sellerOrderId], references: [tenantId, id], onDelete: Restrict)
+  @@index([sellerOrderId, createdAt])
+  @@index([orderId])
+}
+// Notification dans le site (les canaux SMS/WhatsApp lisent l'outbox, fournisseur à choisir).
+model Notification {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  kind String
+  orderId String? @db.Uuid
+  data Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  readAt DateTime? @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+}

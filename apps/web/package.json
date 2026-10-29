@@ -1,0 +1,28 @@
+{
+  "name": "@duoshop/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@duoshop/config": "workspace:*",
+    "@duoshop/domain": "workspace:*",
+    "@duoshop/i18n": "workspace:*",
+    "@duoshop/sdk": "workspace:*",
+    "@duoshop/types": "workspace:*",
+    "@duoshop/ui": "workspace:*",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "tailwindcss": "4.3.3"
+  }
+}
