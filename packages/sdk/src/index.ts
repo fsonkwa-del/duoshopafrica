@@ -7,6 +7,8 @@ import {
   CART_COOKIE,
   type CartDTO,
   type CatalogPageDTO,
+  type ClaimDTO,
+  type ClaimReasonDTO,
   type CommissionRuleDTO,
   type DeliveryContactDTO,
   type DeliveryMethodDTO,
@@ -506,11 +508,17 @@ export const updatePaymentMethod = (
     { origin, body },
   );
 export const getAdminPayments = (baseUrl: string, sessionToken: string) =>
-  authorized<{ payments: AdminPaymentDTO[]; events: AdminProviderEventDTO[] }>(
-    baseUrl,
-    "/v1/admin/payments",
-    sessionToken,
-  );
+  authorized<{
+    payments: AdminPaymentDTO[];
+    events: AdminProviderEventDTO[];
+    refunds: {
+      id: string;
+      orderId: string;
+      paymentId: string | null;
+      amount: MoneyDTO;
+      createdAt: string;
+    }[];
+  }>(baseUrl, "/v1/admin/payments", sessionToken);
 // ---------- Livraison et notifications (B07) ----------
 export const advanceFulfilment = (
   baseUrl: string,
@@ -603,6 +611,86 @@ export const getEarnings = (
     baseUrl,
     `/v1/stores/${store(storeId)}/earnings`,
     sessionToken,
+  );
+// ---------- Retours et litiges (B09) ----------
+export const openClaim = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  orderId: string,
+  body: {
+    sellerOrderId: string;
+    reason: ClaimReasonDTO;
+    description: string;
+    items: { orderItemId: string; quantity: number }[];
+    idempotencyKey: string;
+  },
+) =>
+  authorized<ClaimDTO>(
+    baseUrl,
+    `/v1/orders/${encodeURIComponent(orderId)}/claims`,
+    sessionToken,
+    { origin, body },
+  );
+export const claimAction = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  claimId: string,
+  action: "escalate" | "withdraw",
+) =>
+  authorized<{ status: string }>(
+    baseUrl,
+    `/v1/claims/${encodeURIComponent(claimId)}/${action}`,
+    sessionToken,
+    { origin, body: {} },
+  );
+export const listStoreClaims = (
+  baseUrl: string,
+  sessionToken: string,
+  storeId: string,
+) =>
+  authorized<{ claims: ClaimDTO[]; canRespond: boolean }>(
+    baseUrl,
+    `/v1/stores/${store(storeId)}/claims`,
+    sessionToken,
+  );
+export const respondClaim = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  claimId: string,
+  body: { accept: boolean; note?: string; expectedVersion: number },
+) =>
+  authorized<{ status: string }>(
+    baseUrl,
+    `/v1/stores/${store(storeId)}/claims/${encodeURIComponent(claimId)}/respond`,
+    sessionToken,
+    { origin, body },
+  );
+export const listAdminClaims = (
+  baseUrl: string,
+  sessionToken: string,
+  status: string,
+) =>
+  authorized<{ status: string; claims: ClaimDTO[]; canDecide: boolean }>(
+    baseUrl,
+    `/v1/admin/claims?${new URLSearchParams({ status })}`,
+    sessionToken,
+  );
+export const decideClaim = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  claimId: string,
+  body: { refund: boolean; note: string },
+) =>
+  authorized<{ status: string }>(
+    baseUrl,
+    `/v1/admin/claims/${encodeURIComponent(claimId)}/decide`,
+    sessionToken,
+    { origin, body },
   );
 export async function logout(
   baseUrl: string,

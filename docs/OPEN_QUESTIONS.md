@@ -22,6 +22,8 @@ PSP et entité contractante habilités, capacité réelle XAF/mobile money, sand
 
 ## Hypothèses non bloquantes
 
+- B09 : réclamation 7 jours après la remise prouvée ; remboursement des articles hors livraison ; arbitrage par un ADMIN plateforme ; dû vendeur gelé pendant le litige ; pas de logistique retour. À inscrire dans les CGV et à valider juridiquement.
+
 - B08 : commission calculée sur les articles hors livraison (la livraison revient au vendeur qui livre), arrondi half-up par sous-commande, figée au paiement et acquise à la remise prouvée ; plan de comptes provisoire (PSP_CLEARING, SELLER_PAYABLE, COMMISSION_DEFERRED, COMMISSION_REVENUE, REFUND_PAYABLE) ; frais PSP et taxes (TVA sur commission) non modélisés. À valider avec l'expert-comptable et le PSP.
 
 - B07 : remise prouvée par un code à 6 chiffres donné par l'acheteur, 5 essais puis blocage (déblocage par le support, procédure à écrire) ; une boutique suspendue ne peut plus faire avancer ses commandes payées (à valider) ; fournisseur SMS/WhatsApp à choisir pour les notifications externes.

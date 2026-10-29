@@ -39,7 +39,7 @@ export default async function Earnings({
     );
   const money = (m: MoneyDTO | null) =>
     m ? formatMoney(BigInt(m.amountMinor), m.currency, locale) : "—";
-  const { lines, pending, earned } = result.data;
+  const { lines, pending, earned, held } = result.data;
   return (
     <AccountShell locale={locale} path={path} signedIn>
       {back}
@@ -52,6 +52,8 @@ export default async function Earnings({
         <dd>
           <strong>{money(earned)}</strong>
         </dd>
+        <dt>{e.held}</dt>
+        <dd>{money(held)}</dd>
       </dl>
       {lines.length === 0 ? (
         <p>{e.empty}</p>
@@ -85,6 +87,18 @@ export default async function Earnings({
                   </td>
                   <td>
                     <strong>{money(l.net)}</strong>
+                    {l.refunded.amountMinor !== "0" && (
+                      <>
+                        <br />
+                        {e.refunded} : −{money(l.refunded)}
+                      </>
+                    )}
+                    {l.onHold && (
+                      <>
+                        {" "}
+                        <span className="badge">{e.onHold}</span>
+                      </>
+                    )}
                   </td>
                   <td>{t.tracking.statuses[l.fulfilmentStatus]}</td>
                 </tr>

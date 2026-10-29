@@ -1,4 +1,5 @@
 import { asRuntime, type Database } from "@duoshop/database";
+import { claimHoldsPayout } from "@duoshop/domain";
 import type {
   CommissionRuleDTO,
   EarningsDTO,
@@ -250,10 +251,14 @@ export async function financeRoutes(
         db,
         { userId: staff.principal.userId },
         (tx) =>
-          tx.$queryRaw<{ report: Omit<FinanceReportDTO, "from" | "to"> }[]>`
-            SELECT finance_report(${from}, ${to}) AS report`,
+          tx.$queryRaw<
+            {
+              report: Omit<FinanceReportDTO, "from" | "to" | "holds">;
+              holds: FinanceReportDTO["holds"];
+            }[]
+          >`SELECT finance_report(${from}, ${to}) AS report, finance_holds() AS holds`,
       );
-      return { from: fromDay, to: toDay, ...row?.report };
+      return { from: fromDay, to: toDay, ...row?.report, holds: row?.holds };
     },
   );
 
@@ -284,18 +289,33 @@ export async function financeRoutes(
             where: { storeId, status: "PAID" },
             orderBy: { createdAt: "desc" },
             take: 200,
-            include: { items: { select: { currency: true }, take: 1 } },
+            include: {
+              items: { select: { currency: true }, take: 1 },
+              claims: {
+                select: {
+                  status: true,
+                  refund: { select: { sellerDebitMinor: true } },
+                },
+              },
+            },
           }),
       );
       if (!result.ok)
         return reply.code(result.status).send({ error: result.error });
       let pending = 0n;
       let earned = 0n;
+      let held = 0n;
       let currency = "XAF";
       const lines = result.value.map((so) => {
         currency = so.items[0]?.currency ?? currency;
-        const net = so.sellerNetMinor ?? 0n;
-        if (so.fulfilmentStatus === "DELIVERED") earned += net;
+        const refunded = so.claims.reduce(
+          (sum, c) => sum + (c.refund?.sellerDebitMinor ?? 0n),
+          0n,
+        );
+        const onHold = so.claims.some((c) => claimHoldsPayout(c.status));
+        const net = (so.sellerNetMinor ?? 0n) - refunded;
+        if (onHold) held += net;
+        else if (so.fulfilmentStatus === "DELIVERED") earned += net;
         else pending += net;
         const money = (v: bigint | null) =>
           v === null ? null : { amountMinor: v.toString(), currency };
@@ -308,12 +328,15 @@ export async function financeRoutes(
           commissionBasisPoints: so.commissionBasisPoints,
           commission: money(so.commissionMinor),
           net: money(so.sellerNetMinor),
+          refunded: { amountMinor: refunded.toString(), currency },
+          onHold,
         };
       });
       const body: EarningsDTO = {
         lines,
         pending: { amountMinor: pending.toString(), currency },
         earned: { amountMinor: earned.toString(), currency },
+        held: { amountMinor: held.toString(), currency },
       };
       return body;
     },

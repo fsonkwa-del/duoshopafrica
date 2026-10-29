@@ -5,10 +5,14 @@ import {
   canAccess,
   canAdjustStock,
   canChangeProductStatus,
+  canOpenClaim,
   canPlatform,
   canSubmitVerification,
+  claimHoldsPayout,
   commissionMinor,
+  commissionReversal,
   type Membership,
+  nextClaimSteps,
   nextFulfilmentSteps,
   normalizeCameroonPhone,
   normalizeSku,
@@ -364,5 +368,55 @@ describe("finance separation of duties", () => {
         permission: "merchant:decide",
       }),
     ).toBe(false);
+  });
+});
+
+describe("claims", () => {
+  const delivered = new Date("2026-10-20T10:00:00Z");
+  it("open only after a proven handover, within 7 days", () => {
+    expect(
+      canOpenClaim({
+        fulfilmentStatus: "DELIVERED",
+        deliveredAt: delivered,
+        now: new Date("2026-10-27T10:00:00Z"),
+      }),
+    ).toBe(true);
+    expect(
+      canOpenClaim({
+        fulfilmentStatus: "DELIVERED",
+        deliveredAt: delivered,
+        now: new Date("2026-10-27T10:00:01Z"),
+      }),
+    ).toBe(false);
+    expect(
+      canOpenClaim({
+        fulfilmentStatus: "OUT_FOR_DELIVERY",
+        deliveredAt: null,
+        now: delivered,
+      }),
+    ).toBe(false);
+  });
+  it("seller answers, buyer escalates, only the platform arbitrates", () => {
+    expect(nextClaimSteps("seller", "OPEN")).toEqual(["ACCEPTED", "REJECTED"]);
+    expect(nextClaimSteps("buyer", "REJECTED")).toEqual([
+      "ESCALATED",
+      "WITHDRAWN",
+    ]);
+    expect(nextClaimSteps("seller", "ESCALATED")).toEqual([]);
+    expect(nextClaimSteps("platform", "ESCALATED")).toEqual([
+      "REFUND_APPROVED",
+      "CLOSED_NO_REFUND",
+    ]);
+    expect(nextClaimSteps("buyer", "ACCEPTED")).toEqual([]);
+  });
+  it("freezes the payout while a claim is pending", () => {
+    expect(claimHoldsPayout("OPEN")).toBe(true);
+    expect(claimHoldsPayout("ESCALATED")).toBe(true);
+    expect(claimHoldsPayout("REFUND_APPROVED")).toBe(false);
+    expect(claimHoldsPayout("WITHDRAWN")).toBe(false);
+  });
+  it("reverses commission at the original rate, never more than taken", () => {
+    expect(commissionReversal(12500n, 500, 1150n)).toBe(625n);
+    expect(commissionReversal(23000n, 500, 1000n)).toBe(1000n);
   });
 });

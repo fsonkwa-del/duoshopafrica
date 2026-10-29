@@ -7,6 +7,7 @@ import Fastify from "fastify";
 import { accountRoutes } from "./account";
 import { cartRoutes } from "./cart";
 import { catalogRoutes } from "./catalog";
+import { claimRoutes } from "./claims";
 import { devLoginRoutes } from "./dev-login";
 import { financeRoutes } from "./finance";
 import { fulfilmentRoutes } from "./fulfilment";
@@ -143,6 +144,7 @@ export async function createApp({
     await app.register(paymentRoutes, { db, webOrigin, providers });
     await app.register(fulfilmentRoutes, { db, webOrigin });
     await app.register(financeRoutes, { db, webOrigin });
+    await app.register(claimRoutes, { db, webOrigin });
     await app.register(mediaRoutes, {
       db,
       webOrigin,

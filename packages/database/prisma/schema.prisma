@@ -16,6 +16,28 @@ enum PlatformRole {
   SUPPORT
   FINANCE
 }
+enum ClaimStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+  ESCALATED
+  REFUND_APPROVED
+  CLOSED_NO_REFUND
+  WITHDRAWN
+}
+enum ClaimReason {
+  DAMAGED
+  WRONG_ITEM
+  NOT_AS_DESCRIBED
+  MISSING_ITEM
+  OTHER
+}
+// PENDING_PROVIDER : décidé et comptabilisé, à exécuter par un prestataire de paiement réel.
+enum RefundStatus {
+  PENDING_PROVIDER
+  SUCCEEDED
+  FAILED
+}
 // Plan de comptes provisoire, à valider avec l'expert-comptable (docs/PAYMENTS.md).
 enum LedgerAccount {
   PSP_CLEARING
@@ -504,6 +526,7 @@ model SellerOrder {
   items OrderItem[]
   handover HandoverCode?
   events FulfilmentEvent[]
+  claims Claim[]
   @@unique([tenantId, id])
   @@index([storeId, createdAt])
   @@index([orderId])
@@ -521,6 +544,7 @@ model OrderItem {
   lineTotalMinor BigInt
   reservationRef String
   sellerOrder SellerOrder @relation(fields: [tenantId, sellerOrderId], references: [tenantId, id], onDelete: Restrict)
+  claimItems ClaimItem[]
   @@index([sellerOrderId])
 }
 
@@ -687,4 +711,71 @@ model LedgerEntry {
   journal LedgerJournal @relation(fields: [journalId], references: [id], onDelete: Restrict)
   @@index([journalId])
   @@index([account, tenantId])
+}
+
+// ---------- Retours, litiges, remboursements (B09) ----------
+// Réclamation de l'acheteur sur une sous-commande remise (7 jours). Écritures par fonctions SQL.
+model Claim {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  sellerOrderId String @db.Uuid
+  orderId String @db.Uuid
+  buyerId String @db.Uuid
+  reason ClaimReason
+  description String
+  status ClaimStatus @default(OPEN)
+  // Montant demandé : prix figés des articles concernés (livraison exclue).
+  amountMinor BigInt
+  currency String @db.Char(3)
+  idempotencyKey String
+  version Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  closedAt DateTime? @db.Timestamptz(3)
+  sellerOrder SellerOrder @relation(fields: [tenantId, sellerOrderId], references: [tenantId, id], onDelete: Restrict)
+  items ClaimItem[]
+  events ClaimEvent[]
+  refund Refund?
+  @@unique([buyerId, idempotencyKey])
+  @@index([sellerOrderId])
+  @@index([tenantId, status])
+  @@index([status, createdAt])
+}
+model ClaimItem {
+  id String @id @default(uuid()) @db.Uuid
+  claimId String @db.Uuid
+  tenantId String @db.Uuid
+  orderItemId String @db.Uuid
+  quantity Int
+  amountMinor BigInt
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  @@unique([claimId, orderItemId])
+}
+model ClaimEvent {
+  id String @id @default(uuid()) @db.Uuid
+  claimId String @db.Uuid
+  status ClaimStatus
+  actor String
+  note String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  @@index([claimId, createdAt])
+}
+// Remboursement décidé : dette envers l'acheteur, commission reprise au prorata.
+model Refund {
+  id String @id @default(uuid()) @db.Uuid
+  claimId String @unique @db.Uuid
+  tenantId String @db.Uuid
+  orderId String @db.Uuid
+  buyerId String @db.Uuid
+  paymentId String? @db.Uuid
+  amountMinor BigInt
+  commissionReversedMinor BigInt
+  sellerDebitMinor BigInt
+  currency String @db.Char(3)
+  status RefundStatus @default(PENDING_PROVIDER)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  @@index([status, createdAt])
+  @@index([tenantId])
 }

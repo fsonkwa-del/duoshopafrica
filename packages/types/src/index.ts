@@ -190,6 +190,7 @@ export interface QuoteDTO {
   total: MoneyDTO;
 }
 export interface OrderItemDTO {
+  id: string;
   title: string;
   label: string;
   quantity: number;
@@ -218,6 +219,9 @@ export interface SellerOrderDTO {
   events: FulfilmentEventDTO[];
   // Acheteur seulement : à donner au vendeur ou au livreur à la réception, pas avant.
   handoverCode: string | null;
+  // Réclamation possible (remise prouvée depuis 7 jours au plus, aucune en cours).
+  claimable: boolean;
+  claims: ClaimDTO[];
   deliveryMethod: DeliveryMethodDTO;
   deliveryFee: MoneyDTO;
   itemsTotal: MoneyDTO;
@@ -371,6 +375,13 @@ export interface FinanceReportDTO {
   }[];
   anomalies: FinanceAnomalyDTO[];
   daily: { day: string; settled: string; posted: string }[];
+  // Dû vendeur gelé par des réclamations en cours.
+  holds: {
+    tenantId: string;
+    stores: string | null;
+    currency: string;
+    amount: string;
+  }[];
 }
 export interface EarningsDTO {
   lines: {
@@ -382,8 +393,52 @@ export interface EarningsDTO {
     commissionBasisPoints: number | null;
     commission: MoneyDTO | null;
     net: MoneyDTO | null;
+    // Remboursements décidés imputés au vendeur ; réclamation en cours = dû gelé.
+    refunded: MoneyDTO;
+    onHold: boolean;
   }[];
   // Net dû pour les sous-commandes pas encore remises / déjà remises (commission acquise).
   pending: MoneyDTO;
   earned: MoneyDTO;
+  held: MoneyDTO;
+}
+
+// ---------- Retours, litiges, remboursements (B09) ----------
+export type ClaimStatusDTO =
+  | "OPEN"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "ESCALATED"
+  | "REFUND_APPROVED"
+  | "CLOSED_NO_REFUND"
+  | "WITHDRAWN";
+export type ClaimReasonDTO =
+  | "DAMAGED"
+  | "WRONG_ITEM"
+  | "NOT_AS_DESCRIBED"
+  | "MISSING_ITEM"
+  | "OTHER";
+export interface ClaimDTO {
+  id: string;
+  sellerOrderId: string;
+  orderId: string;
+  storeName: string | null;
+  reason: ClaimReasonDTO;
+  description: string;
+  status: ClaimStatusDTO;
+  amount: MoneyDTO;
+  version: number;
+  createdAt: string;
+  items: { title: string; label: string; quantity: number; amount: MoneyDTO }[];
+  events: {
+    status: ClaimStatusDTO;
+    actor: string;
+    note: string | null;
+    createdAt: string;
+  }[];
+  // Remboursement décidé, à exécuter par le prestataire de paiement.
+  refund: {
+    amount: MoneyDTO;
+    status: "PENDING_PROVIDER" | "SUCCEEDED" | "FAILED";
+  } | null;
 }

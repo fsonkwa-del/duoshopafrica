@@ -10,6 +10,7 @@ export type Permission =
   | "order:read"
   | "order:fulfil"
   | "earnings:read"
+  | "claim:respond"
   | "team:manage";
 const grants: Record<StoreRole, readonly Permission[]> = {
   OWNER: [
@@ -22,6 +23,7 @@ const grants: Record<StoreRole, readonly Permission[]> = {
     "order:read",
     "order:fulfil",
     "earnings:read",
+    "claim:respond",
     "team:manage",
   ],
   MANAGER: [
@@ -33,6 +35,7 @@ const grants: Record<StoreRole, readonly Permission[]> = {
     "order:read",
     "order:fulfil",
     "earnings:read",
+    "claim:respond",
   ],
   CATALOG: ["store:read", "catalog:write", "catalog:publish"],
   FULFILLMENT: ["store:read", "inventory:write", "order:read", "order:fulfil"],
@@ -55,6 +58,7 @@ const allowedWhile: Record<TenantStatus, readonly Permission[]> = {
     "order:read",
     "order:fulfil",
     "earnings:read",
+    "claim:respond",
     "team:manage",
   ],
   // Suspendu : aucune action, mais le vendeur garde la vue de ce qui lui est dû.
@@ -107,7 +111,9 @@ export type PlatformPermission =
   | "payment:review"
   | "payment:configure"
   | "finance:review"
-  | "finance:configure";
+  | "finance:configure"
+  | "claim:review"
+  | "claim:decide";
 const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
   ADMIN: [
     "merchant:review",
@@ -115,8 +121,11 @@ const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
     "payment:review",
     "payment:configure",
     "finance:review",
+    "claim:review",
+    "claim:decide",
   ],
-  SUPPORT: ["merchant:review", "payment:review"],
+  // Le support instruit les litiges ; l'arbitrage (décision d'argent) revient à l'ADMIN.
+  SUPPORT: ["merchant:review", "payment:review", "claim:review"],
   // Les règles de commission ne sont modifiables que par la finance ; l'admin les consulte.
   FINANCE: ["payment:review", "finance:review", "finance:configure"],
 };
@@ -284,3 +293,60 @@ export function nextFulfilmentSteps(
 // Remise prouvée par le code à 6 chiffres que seul l'acheteur connaît.
 export const HANDOVER_CODE_PATTERN = /^[0-9]{6}$/;
 export const HANDOVER_MAX_ATTEMPTS = 5;
+
+// ---------- Retours, litiges, remboursements (B09) ----------
+// Miroir des fonctions SQL (open_claim, respond_claim, escalate_claim, arbitrate_claim, withdraw_claim).
+export const CLAIM_WINDOW_DAYS = 7;
+export type ClaimStatus =
+  | "OPEN"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "ESCALATED"
+  | "REFUND_APPROVED"
+  | "CLOSED_NO_REFUND"
+  | "WITHDRAWN";
+export type ClaimActor = "buyer" | "seller" | "platform";
+const claimMoves: Record<
+  ClaimActor,
+  Partial<Record<ClaimStatus, ClaimStatus[]>>
+> = {
+  buyer: {
+    OPEN: ["WITHDRAWN"],
+    REJECTED: ["ESCALATED", "WITHDRAWN"],
+    ESCALATED: ["WITHDRAWN"],
+  },
+  seller: { OPEN: ["ACCEPTED", "REJECTED"] },
+  platform: { ESCALATED: ["REFUND_APPROVED", "CLOSED_NO_REFUND"] },
+};
+export function nextClaimSteps(
+  actor: ClaimActor,
+  from: ClaimStatus,
+): ClaimStatus[] {
+  return claimMoves[actor][from] ?? [];
+}
+// Réclamation en cours : le dû vendeur de la vente est gelé.
+export function claimHoldsPayout(status: ClaimStatus): boolean {
+  return status === "OPEN" || status === "REJECTED" || status === "ESCALATED";
+}
+export function canOpenClaim(input: {
+  fulfilmentStatus: FulfilmentStatus;
+  deliveredAt: Date | null;
+  now: Date;
+}): boolean {
+  return (
+    input.fulfilmentStatus === "DELIVERED" &&
+    input.deliveredAt !== null &&
+    input.now.getTime() - input.deliveredAt.getTime() <=
+      CLAIM_WINDOW_DAYS * 24 * 3600_000
+  );
+}
+// Commission reprise sur un remboursement : même taux et même arrondi qu'à l'origine,
+// plafonnée à ce qui reste de la commission prélevée.
+export function commissionReversal(
+  refund: bigint,
+  basisPoints: number,
+  remainingCommission: bigint,
+): bigint {
+  const reversal = commissionMinor(refund, basisPoints);
+  return reversal > remainingCommission ? remainingCommission : reversal;
+}

@@ -8,6 +8,9 @@ export function AdminNav({ locale }: { locale: Locale }) {
       <Link href={`/${locale}/admin/verifications`}>{a.title}</Link>
       <Link href={`/${locale}/admin/payment-methods`}>{a.methods.title}</Link>
       <Link href={`/${locale}/admin/payments`}>{a.payments.title}</Link>
+      <Link href={`/${locale}/admin/claims`}>
+        {messages[locale].claims.adminTitle}
+      </Link>
       <Link href={`/${locale}/admin/commissions`}>
         {messages[locale].commissions.nav}
       </Link>

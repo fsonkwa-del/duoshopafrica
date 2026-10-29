@@ -64,6 +64,9 @@ export default async function StorePage({
         </Link>{" "}
         <Link href={`/${locale}/account/stores/${store.id}/earnings`}>
           {t.earnings.link}
+        </Link>{" "}
+        <Link href={`/${locale}/account/stores/${store.id}/claims`}>
+          {t.claims.title}
         </Link>
       </p>
       <section aria-labelledby="fulfilment" className="panel">

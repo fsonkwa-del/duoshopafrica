@@ -33,7 +33,7 @@ export default async function PaymentsToHandle({
         </Notice>
       </AccountShell>
     );
-  const { payments, events } = result.data;
+  const { payments, events, refunds } = result.data;
   const reason = (code: string | null) =>
     code && code in p.reasons
       ? p.reasons[code as keyof typeof p.reasons]
@@ -82,6 +82,28 @@ export default async function PaymentsToHandle({
             </tbody>
           </table>
         </div>
+      )}
+      <h2>{p.refunds}</h2>
+      {refunds.length === 0 ? (
+        <p>{p.empty}</p>
+      ) : (
+        <ul className="cart-lines">
+          {refunds.map((r) => (
+            <li key={r.id}>
+              <span>
+                {t.orders.number} {r.orderId.slice(0, 8).toUpperCase()} ·{" "}
+                {formatDateTime(r.createdAt, locale)}
+              </span>
+              <strong>
+                {formatMoney(
+                  BigInt(r.amount.amountMinor),
+                  r.amount.currency,
+                  locale,
+                )}
+              </strong>
+            </li>
+          ))}
+        </ul>
       )}
       <h2>{p.events}</h2>
       {events.length === 0 ? (

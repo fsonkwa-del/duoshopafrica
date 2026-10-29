@@ -7,6 +7,8 @@ import {
   type ScopedTx,
 } from "@duoshop/database";
 import {
+  canOpenClaim,
+  claimHoldsPayout,
   normalizeCameroonPhone,
   ORDER_PAYMENT_WINDOW_MS,
   parsePriceMinor,
@@ -24,6 +26,7 @@ import {
 } from "@duoshop/types";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { buildCart, mergeGuestCart } from "./cart";
+import { claimInclude, claimView } from "./claims";
 import {
   errorSchema as error,
   requirePrincipal,
@@ -174,6 +177,7 @@ const orderInclude = {
       events: { orderBy: { createdAt: "asc" } },
       // Code de remise : la RLS ne le rend qu'à l'acheteur.
       handover: true,
+      claims: { orderBy: { createdAt: "desc" }, include: claimInclude },
     },
   },
   payments: { orderBy: { createdAt: "desc" } },
@@ -185,6 +189,7 @@ type OrderRow = Awaited<ReturnType<ScopedTx["order"]["findMany"]>>[number] & {
     items: Awaited<ReturnType<ScopedTx["orderItem"]["findMany"]>>;
     events?: Awaited<ReturnType<ScopedTx["fulfilmentEvent"]["findMany"]>>;
     handover?: { code: string } | null;
+    claims?: Parameters<typeof claimView>[0][];
   })[];
   payments: Awaited<ReturnType<ScopedTx["payment"]["findMany"]>>;
 };
@@ -206,11 +211,19 @@ function sellerOrderView(
     })),
     handoverCode:
       so.fulfilmentStatus !== "DELIVERED" ? (so.handover?.code ?? null) : null,
+    claimable:
+      canOpenClaim({
+        fulfilmentStatus: so.fulfilmentStatus,
+        deliveredAt: so.deliveredAt,
+        now: new Date(),
+      }) && !(so.claims ?? []).some((c) => claimHoldsPayout(c.status)),
+    claims: (so.claims ?? []).map(claimView),
     deliveryMethod: so.deliveryMethod,
     deliveryFee: money(so.deliveryFeeMinor, currency),
     itemsTotal: money(so.itemsTotalMinor, currency),
     pickupInstructions: so.pickupInstructions,
     items: so.items.map((i) => ({
+      id: i.id,
       title: i.title,
       label: i.label,
       quantity: i.quantity,

@@ -424,3 +424,55 @@ Priorité retenue : une commande payée était une impasse (ni préparation, ni 
 - **Taux, base, arrondi et plan de comptes sont des hypothèses** à valider : commercial, expert-comptable, fiscalité (TVA sur commission non modélisée), frais PSP non modélisés.
 - Pas de facture ni d'avoir numérotés (B08 étendu ou B12), pas de reversement (partenaire habilité requis), pas de relevé PSP importé.
 - Pas de contrepassation outillée (B09 remboursements).
+
+---
+
+# Sprint 10 — B09 Retours, litiges et remboursements — 29 octobre 2026
+
+## Livré
+
+- **Migrations `202611080001_claims_refunds` et `202611080002_claims_staff_read`** :
+  - tables `Claim`, `ClaimItem`, `ClaimEvent`, `Refund` (statut PENDING_PROVIDER) ;
+  - RLS : acheteur, vendeur (tenant) et personnel en lecture ; aucune écriture directe ;
+  - fonctions de transition et de remboursement :
+    - `open_claim` : remise prouvée depuis 7 jours au plus, une réclamation active à la fois, quantités bornées par le non-remboursé, rejeu idempotent ;
+    - `respond_claim` : vendeur, motif obligatoire pour refuser ;
+    - `buyer_claim_action` : demande d'arbitrage ou retrait ;
+    - `arbitrate_claim` : ADMIN seul ;
+    - `decide_refund` : jamais au-delà de l'encaissé, commission reprise au même taux (half-up), plafonnée au reste ;
+  - écriture `refund_decided` : dû vendeur −, commission −, dette envers l'acheteur + ;
+  - `finance_holds` : dû vendeur gelé par les réclamations en cours ;
+  - lecture des sous-commandes par le personnel, pour instruire les litiges.
+- **Domaine** : machine `nextClaimSteps`, `canOpenClaim`, `claimHoldsPayout`, `commissionReversal` ; permission vendeur `claim:respond` (propriétaire, gérant) ; plateforme `claim:review` (support, admin) et `claim:decide` (admin).
+- **API** : `POST /v1/orders/:id/claims`, `POST /v1/claims/:id/escalate|withdraw`, `GET /v1/stores/:id/claims`, `POST /v1/stores/:id/claims/:claimId/respond`, `GET /v1/admin/claims`, `POST /v1/admin/claims/:id/decide`. Les remboursements à exécuter apparaissent dans « Paiements à traiter », les gels dans Finance, le remboursé et le gelé dans Revenus.
+- **Web FR/EN, sans JavaScript** :
+  - acheteur : « Signaler un problème » (formulaire par article), suivi, demande d'arbitrage, retrait ;
+  - vendeur : page « Réclamations », accepter ou refuser avec motif ;
+  - admin : « Litiges à arbitrer » ;
+  - notifications des deux côtés.
+
+## Commandes réellement exécutées
+
+- Migrations appliquées, `migrate diff` vide. Lint OK, typecheck 12/12, build 3/3, 59 tests unitaires (4 pour les litiges).
+- Un `spawn EPERM` passager de Turbo sous Windows a été revérifié : relance OK, puis `tsc` paquet par paquet.
+- `test:db` : 142 tests (base 19, API 121, worker 2), dont 7 pour B09 :
+  - délai de 7 jours, remise non prouvée, autre acheteur 404, quantité excessive ;
+  - gel du dû (29 500), rejeu idempotent, une seule réclamation active ;
+  - le préparateur ne peut pas répondre, une autre boutique ne voit rien, motif obligatoire ;
+  - arbitrage : le support instruit (403 pour décider), l'admin rembourse ;
+  - écriture 19 000 / 1 000 / −20 000 ;
+  - deuxième réclamation limitée au reste, commission jamais reprise deux fois (500 restants) ;
+  - le retrait libère le gel.
+- **Smoke interface** :
+  - nouveau client : 2 sacs, paiement, remise par code ;
+  - réclamation envoyée deux fois : une seule ;
+  - refus sans motif bloqué, refus motivé, arbitrage demandé ;
+  - l'admin voit « En arbitrage » (30 000) et rembourse : remboursement 30 000, commission reprise 1 500, dû vendeur −28 500, « en attente d'exécution par le prestataire » ;
+  - revenus : remboursé −28 500, gelé 0 ; finance : à rembourser −30 000, aucun gel ;
+  - notifications vendeuse et acheteur ; aucune erreur 500.
+
+## Limites
+
+- **Aucun remboursement n'est exécuté** : il faut un PSP réel (capacité de remboursement, webhook de confirmation, écriture REFUND_PAYABLE → PSP_CLEARING).
+- Pas de logistique retour (étiquette, réception de l'article, remise en stock), pas de photos jointes (stockage S3), pas de rétrofacturation (chargeback).
+- Délai de 7 jours, base articles hors livraison et arbitrage par l'ADMIN : hypothèses à valider (conditions générales de vente).

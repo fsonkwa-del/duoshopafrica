@@ -133,6 +133,20 @@ export default async function Finance({
         </table>
       </div>
 
+      <h2>{fi.holds}</h2>
+      {r.holds.length === 0 ? (
+        <p>{fi.noHold}</p>
+      ) : (
+        <ul className="cart-lines">
+          {r.holds.map((h) => (
+            <li key={`${h.tenantId}-${h.currency}`}>
+              <span>{h.stores ?? h.tenantId}</span>
+              <strong>{amount(h.amount, h.currency, locale)}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <h2>{fi.daily}</h2>
       <div className="table-scroll">
         <table>

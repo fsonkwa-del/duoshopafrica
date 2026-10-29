@@ -13,8 +13,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiUrl, sessionToken } from "../../../../lib/session";
 import { cancelOrderAction } from "../../checkout/actions";
+import { ClaimCard } from "../../claim-card";
 import { ShopShell } from "../../shop-shell";
-import { payAction, simulateAction } from "./actions";
+import { claimStepAction, payAction, simulateAction } from "./actions";
 
 const money = (m: MoneyDTO, locale: Locale) =>
   formatMoney(BigInt(m.amountMinor), m.currency, locale);
@@ -38,6 +39,8 @@ export default async function OrderPage({
     cancelled?: string;
     error?: string;
     payError?: string;
+    claimSent?: string;
+    claimError?: string;
   }>;
 }) {
   const { locale, orderId } = await params;
@@ -48,6 +51,7 @@ export default async function OrderPage({
   const c = t.checkout;
   const p = t.payment;
   const fu = t.tracking;
+  const cl = t.claims;
   const token = await sessionToken();
   const result = token ? await getOrder(apiUrl, token, orderId) : null;
   if (!token || !result?.ok) notFound();
@@ -71,6 +75,10 @@ export default async function OrderPage({
       </h1>
       {query.cancelled && <Notice>{o.cancelled}</Notice>}
       {query.error && <Notice>{errorText(o.errors, query.error)}</Notice>}
+      {query.claimSent && <Notice>{cl.sent}</Notice>}
+      {query.claimError && (
+        <Notice>{errorText(cl.errors, query.claimError)}</Notice>
+      )}
       <p>
         <strong>{o.statuses[order.status]}</strong> · {o.placed}{" "}
         {formatDateTime(order.createdAt, locale)}
@@ -238,6 +246,43 @@ export default async function OrderPage({
                   </li>
                 ))}
               </ol>
+              {seller.claimable && (
+                <p>
+                  <Link
+                    className="secondary"
+                    href={`/${locale}/orders/${order.id}/claim?seller=${seller.id}`}
+                  >
+                    {cl.report}
+                  </Link>
+                </p>
+              )}
+              {seller.claims.map((claim) => (
+                <ClaimCard key={claim.id} locale={locale} claim={claim}>
+                  <div className="inline-forms">
+                    {(claim.status === "REJECTED"
+                      ? (["escalate", "withdraw"] as const)
+                      : claim.status === "OPEN" || claim.status === "ESCALATED"
+                        ? (["withdraw"] as const)
+                        : []
+                    ).map((action) => (
+                      <form key={action} action={claimStepAction}>
+                        <input type="hidden" name="locale" value={locale} />
+                        <input type="hidden" name="orderId" value={order.id} />
+                        <input type="hidden" name="claimId" value={claim.id} />
+                        <input type="hidden" name="action" value={action} />
+                        <button
+                          type="submit"
+                          className={
+                            action === "escalate" ? "cta" : "secondary"
+                          }
+                        >
+                          {action === "escalate" ? cl.escalate : cl.withdraw}
+                        </button>
+                      </form>
+                    ))}
+                  </div>
+                </ClaimCard>
+              ))}
             </>
           )}
           <ul className="cart-lines">

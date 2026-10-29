@@ -639,7 +639,7 @@ export async function paymentRoutes(
     async (request, reply) => {
       const staff = await requireStaff(db, request, reply, "payment:review");
       if (!staff) return reply;
-      const { payments, events } = await asRuntime(
+      const { payments, events, refunds } = await asRuntime(
         db,
         { userId: staff.principal.userId },
         async (tx) => ({
@@ -651,6 +651,11 @@ export async function paymentRoutes(
           events: await tx.providerEvent.findMany({
             where: { outcome: { in: ["QUARANTINED", "ORPHAN"] } },
             orderBy: { receivedAt: "desc" },
+            take: 100,
+          }),
+          refunds: await tx.refund.findMany({
+            where: { status: "PENDING_PROVIDER" },
+            orderBy: { createdAt: "asc" },
             take: 100,
           }),
         }),
@@ -671,6 +676,14 @@ export async function paymentRoutes(
             settledAt: p.settledAt?.toISOString() ?? null,
           }),
         ),
+        // Remboursements décidés (litiges), à exécuter chez le prestataire.
+        refunds: refunds.map((r) => ({
+          id: r.id,
+          orderId: r.orderId,
+          paymentId: r.paymentId,
+          amount: money(r.amountMinor, r.currency),
+          createdAt: r.createdAt.toISOString(),
+        })),
         events: events.map(
           (e): AdminProviderEventDTO => ({
             id: e.id,
