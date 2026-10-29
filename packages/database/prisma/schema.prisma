@@ -14,6 +14,15 @@ enum TenantStatus {
 enum PlatformRole {
   ADMIN
   SUPPORT
+  FINANCE
+}
+// Plan de comptes provisoire, à valider avec l'expert-comptable (docs/PAYMENTS.md).
+enum LedgerAccount {
+  PSP_CLEARING
+  SELLER_PAYABLE
+  COMMISSION_DEFERRED
+  COMMISSION_REVENUE
+  REFUND_PAYABLE
 }
 enum VerificationStatus {
   PENDING
@@ -483,6 +492,12 @@ model SellerOrder {
   // Codes de remise erronés saisis ; au-delà de 5, la remise est bloquée (support).
   handoverAttempts Int @default(0)
   deliveredAt DateTime? @db.Timestamptz(3)
+  // Commission figée au paiement (B08) : règle, taux, base (articles hors livraison), montant, net vendeur.
+  commissionRuleId String? @db.Uuid
+  commissionBasisPoints Int?
+  commissionBaseMinor BigInt?
+  commissionMinor BigInt?
+  sellerNetMinor BigInt?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
   store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
@@ -634,4 +649,42 @@ model Notification {
   readAt DateTime? @db.Timestamptz(3)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, createdAt])
+}
+
+// ---------- Commissions et journal (B08) ----------
+// Règle datée : la plus récente en vigueur au paiement s'applique ; une règle de boutique
+// prime sur la règle par défaut (storeId nul). Lignes immuables, sauf la date de fin.
+model CommissionRule {
+  id String @id @default(uuid()) @db.Uuid
+  storeId String? @db.Uuid
+  basisPoints Int
+  label String
+  validFrom DateTime @db.Timestamptz(3)
+  validTo DateTime? @db.Timestamptz(3)
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([storeId, validFrom])
+}
+// Écriture comptable : une par événement source (kind + sourceId), équilibrée par devise.
+model LedgerJournal {
+  id String @id @default(uuid()) @db.Uuid
+  kind String
+  sourceId String
+  currency String @db.Char(3)
+  description String
+  occurredAt DateTime @default(now()) @db.Timestamptz(3)
+  entries LedgerEntry[]
+  @@unique([kind, sourceId])
+  @@index([occurredAt])
+}
+// Montant signé : débit positif, crédit négatif. tenantId pour le sous-compte vendeur.
+model LedgerEntry {
+  id String @id @default(uuid()) @db.Uuid
+  journalId String @db.Uuid
+  account LedgerAccount
+  tenantId String? @db.Uuid
+  amountMinor BigInt
+  journal LedgerJournal @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  @@index([journalId])
+  @@index([account, tenantId])
 }

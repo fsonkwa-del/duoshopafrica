@@ -49,3 +49,14 @@ Conseil juridique local et partenaire habilité : modèle contractuel marketplac
 - **Webhook** : signature vérifiée sur le corps brut, puis `apply_payment_event`. Issues possibles : APPLIED, DUPLICATE, QUARANTINED (identifiant réutilisé, référence ou montant différents, échec après succès), ORPHAN, IGNORED.
 - **Succès** : commande PAID, réservations CONSUMED, mouvements SALE, contact transmis au vendeur. Si la commande ne peut pas être confirmée (`attentionReason` : order_closed, duplicate_payment, stock_released, amount_mismatch), décision manuelle depuis « Paiements à traiter ».
 - **Ajouter un PSP** : écrire un adaptateur `PaymentProvider` (initiate, verifyWebhook) et l'enregistrer dans `providersFromEnv` avec ses secrets d'environnement. Le tester en sandbox réelle avec preuves expurgées, puis créer les moyens correspondants dans l'administration.
+
+## Commissions et journal (Sprint 9)
+
+- **Règles** (`CommissionRule`) : taux en points de base, boutique ou défaut, période de validité. Créées ou closes par le rôle FINANCE seul, jamais rétroactives, historisées dans `ConfigAudit`. **Aucun taux n'est actif par défaut** : les 5 % / 4 % du cahier ne sont pas validés.
+- **Photographie au paiement** sur `SellerOrder` : règle, taux, base (articles), commission, net vendeur. Contrôle en base : net = articles + livraison − commission.
+- **Écritures** (débit +, crédit −), une par événement source, idempotentes :
+  - `order_paid` : PSP_CLEARING + (articles + livraison) ; SELLER_PAYABLE − net (sous-compte du vendeur) ; COMMISSION_DEFERRED − commission ;
+  - `commission_earned` (remise prouvée par code) : COMMISSION_DEFERRED + ; COMMISSION_REVENUE − ;
+  - `unapplied_payment` (succès non applicable) : PSP_CLEARING + ; REFUND_PAYABLE −.
+- **Équilibre** garanti par une contrainte différée à la validation de la transaction. Le runtime n'a aucun droit d'écriture ni de modification : toute correction future passera par contrepassation.
+- **Rapprochement** (`finance_report`) : balance par compte, dû par vendeur, et écarts. Écarts signalés : paiement sans écriture, commande payée sans règle, encaissé ≠ comptabilisé par jour (heure de Douala), écriture déséquilibrée. Le relevé du PSP n'est pas encore intégré (pas de PSP réel).

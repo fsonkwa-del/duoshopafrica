@@ -5,7 +5,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiUrl, sessionCookie, webOrigin } from "../../../lib/session";
 
-const profiles: readonly string[] = ["newBuyer", "buyer", "seller", "admin"];
+const profiles: readonly string[] = [
+  "newBuyer",
+  "buyer",
+  "seller",
+  "admin",
+  "finance",
+];
 
 // DEV UNIQUEMENT : l'API refuse (404) si DEV_LOGIN_ENABLED n'est pas actif.
 export async function demoSignIn(form: FormData) {
@@ -33,7 +39,9 @@ export async function demoSignIn(form: FormData) {
       ? `/${locale}/account`
       : profile === "admin"
         ? `/${locale}/admin/verifications`
-        : `/${locale}/products`;
+        : profile === "finance"
+          ? `/${locale}/admin/finance`
+          : `/${locale}/products`;
   // Retour interne uniquement (même règle que la connexion OIDC).
   redirect(
     /^\/(fr|en)(\/[A-Za-z0-9\-._~/]*)?$/.test(returnTo) &&

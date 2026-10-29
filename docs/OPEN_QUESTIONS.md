@@ -22,6 +22,8 @@ PSP et entité contractante habilités, capacité réelle XAF/mobile money, sand
 
 ## Hypothèses non bloquantes
 
+- B08 : commission calculée sur les articles hors livraison (la livraison revient au vendeur qui livre), arrondi half-up par sous-commande, figée au paiement et acquise à la remise prouvée ; plan de comptes provisoire (PSP_CLEARING, SELLER_PAYABLE, COMMISSION_DEFERRED, COMMISSION_REVENUE, REFUND_PAYABLE) ; frais PSP et taxes (TVA sur commission) non modélisés. À valider avec l'expert-comptable et le PSP.
+
 - B07 : remise prouvée par un code à 6 chiffres donné par l'acheteur, 5 essais puis blocage (déblocage par le support, procédure à écrire) ; une boutique suspendue ne peut plus faire avancer ses commandes payées (à valider) ; fournisseur SMS/WhatsApp à choisir pour les notifications externes.
 
 - B06 : une tentative de paiement en cours prolonge la réservation de 10 minutes ; une tentative sans réponse est close après 10 minutes (un succès tardif reste enregistré et signalé). Préfixes opérateurs saisis par l'administration, à confirmer avec chaque PSP/opérateur.

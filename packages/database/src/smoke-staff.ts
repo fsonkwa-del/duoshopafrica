@@ -8,9 +8,11 @@ if (process.env.NODE_ENV === "production")
 const [email, role = "ADMIN"] = process.argv.slice(2);
 if (
   !email?.endsWith("@example.invalid") ||
-  !["ADMIN", "SUPPORT"].includes(role)
+  !["ADMIN", "SUPPORT", "FINANCE"].includes(role)
 )
-  throw new Error("Usage: smoke-staff <name@example.invalid> [ADMIN|SUPPORT]");
+  throw new Error(
+    "Usage: smoke-staff <name@example.invalid> [ADMIN|SUPPORT|FINANCE]",
+  );
 const db = createDatabase();
 try {
   const { token, tokenHash } = issueSessionToken();

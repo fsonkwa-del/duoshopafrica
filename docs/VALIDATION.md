@@ -379,3 +379,48 @@ Priorité retenue : une commande payée était une impasse (ni préparation, ni 
 - Déblocage après 5 codes erronés : procédure de support à définir (aucun écran admin pour l'instant).
 - Une boutique suspendue ne peut plus faire avancer ses commandes payées : politique à valider (remboursement ou prise en charge).
 - La commande parent n'a pas de statut global « livrée » ; le suivi se fait par vendeur.
+
+---
+
+# Sprint 9 — B08 Commissions, journal en partie double et rapprochement — 29 octobre 2026
+
+## Livré
+
+- **Migration `202611070001_commission_ledger`** :
+  - rôle plateforme **FINANCE**, séparé des opérations (le cahier impose de séparer l'opérationnel, la finance et la sécurité) ;
+  - `CommissionRule` datée, propre à une boutique ou par défaut ; `LedgerJournal` et `LedgerEntry` (débit +, crédit −) ;
+  - photographie de la commission sur `SellerOrder`, avec CHECK de cohérence du net vendeur ;
+  - contrainte différée d'équilibre du journal ; aucune écriture ni modification possible par le runtime ;
+  - écritures automatiques `order_paid`, `commission_earned` (remise prouvée) et `unapplied_payment` ;
+  - fonction `finance_report` (balance, dû par vendeur, écarts, totaux journaliers à l'heure de Douala) ;
+  - reprise de l'existant.
+- **Domaine** : rôle FINANCE (`finance:review` et `finance:configure`) ; l'ADMIN consulte, le SUPPORT est exclu. Permission vendeur `earnings:read` (propriétaire, gérant ; maintenue pour une boutique suspendue).
+- **API** : `GET/POST /v1/admin/commission-rules`, `POST /v1/admin/commission-rules/:id/close` (jamais rétroactif, audité), `GET /v1/admin/finance?from&to` (92 jours au maximum), `GET /v1/stores/:id/earnings`.
+- **Web FR/EN** : pages admin « Commissions » (lecture seule hors FINANCE) et « Finance » (écarts, balance, dû par vendeur, par jour), page vendeur « Revenus » (en attente / acquis, brut, commission, net), profil démo « Finance plateforme ».
+
+## Commandes réellement exécutées
+
+- Migration appliquée, `migrate diff` vide. Lint OK, typecheck 12/12, build 3/3, 55 tests unitaires.
+- `test:db` : 135 tests (base 19, API 114, worker 2), dont 8 pour B08 :
+  - séparation des fonctions (FINANCE écrit, ADMIN lit, SUPPORT 403, inconnu 404) ;
+  - règles non rétroactives, bornées, boutique inconnue refusée, audit ;
+  - commande à deux vendeurs : règle de boutique 5 % (1 000) et défaut 4,5 % **half-up** (8 111 → 365, identique au domaine) ;
+  - journal équilibré, total des fonds chez le PSP = montant payé ;
+  - une nouvelle règle ne modifie pas une photographie passée ;
+  - commission acquise seulement à la remise par code, revenus vendeur cohérents (rôle catalogue refusé) ;
+  - paiement reçu pour une commande expirée : dû à l'acheteur ;
+  - journal déséquilibré refusé à la validation ; runtime sans droit UPDATE/DELETE/INSERT ;
+  - rapprochement sans écart pour ces paiements, période invalide refusée.
+- Les tests de paiement et de suivi nettoient désormais leurs écritures comptables, qui n'ont pas de clé étrangère vers leur source.
+- **Smoke interface** (formulaires sans JavaScript) :
+  - le profil Finance crée « Simulation 5 % — pilote Douala » ; un effet rétroactif est refusé ; l'admin voit « Lecture seule » ;
+  - la commande payée avant toute règle est signalée « sans règle de commission » ;
+  - un nouveau client paie un pagne 12 yards (23 000 + 1 500) : commission 1 150, net 23 350, affiché « en attente » ;
+  - remise par code : net « acquis » ;
+  - Finance : fonds chez le PSP 41 000, dû vendeur 39 850, commissions acquises 1 150 ; seul écart, la commande d'avant la règle ; aucune erreur 500.
+
+## Limites
+
+- **Taux, base, arrondi et plan de comptes sont des hypothèses** à valider : commercial, expert-comptable, fiscalité (TVA sur commission non modélisée), frais PSP non modélisés.
+- Pas de facture ni d'avoir numérotés (B08 étendu ou B12), pas de reversement (partenaire habilité requis), pas de relevé PSP importé.
+- Pas de contrepassation outillée (B09 remboursements).

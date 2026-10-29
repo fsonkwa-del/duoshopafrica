@@ -10,6 +10,7 @@ export const DEMO_PROFILES = {
   buyer: "acheteur@example.invalid",
   seller: "vendeuse@example.invalid",
   admin: "admin@example.invalid",
+  finance: "finance@example.invalid",
 } as const;
 // « newBuyer » simule une inscription : un compte acheteur neuf à chaque fois.
 type Profile = keyof typeof DEMO_PROFILES | "newBuyer";
@@ -77,19 +78,21 @@ export async function devLoginRoutes(
               update: { role: "OWNER", active: true },
             });
         }
-        if (profile === "admin")
+        if (profile === "admin" || profile === "finance") {
+          const role = profile === "admin" ? "ADMIN" : "FINANCE";
           await tx.platformMember.upsert({
             where: { userId: user.id },
-            create: { userId: user.id, role: "ADMIN" },
-            update: { role: "ADMIN", active: true },
+            create: { userId: user.id, role },
+            update: { role, active: true },
           });
+        }
         await tx.session.create({
           data: {
             userId: user.id,
             tokenHash,
             // Second facteur déclaré pour l'admin de démo seulement ; la vraie attestation
             // passe par Zitadel (amr « mfa »).
-            mfa: profile === "admin",
+            mfa: profile === "admin" || profile === "finance",
             expiresAt: new Date(Date.now() + 12 * 3600_000),
           },
         });

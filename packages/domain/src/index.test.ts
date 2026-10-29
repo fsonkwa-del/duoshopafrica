@@ -334,3 +334,35 @@ describe("fulfilment state machine", () => {
     }
   });
 });
+
+describe("finance separation of duties", () => {
+  it("only finance configures commissions; admin reviews; support sees nothing", () => {
+    expect(
+      canPlatform({
+        role: "FINANCE",
+        mfa: true,
+        permission: "finance:configure",
+      }),
+    ).toBe(true);
+    expect(
+      canPlatform({
+        role: "ADMIN",
+        mfa: true,
+        permission: "finance:configure",
+      }),
+    ).toBe(false);
+    expect(
+      canPlatform({ role: "ADMIN", mfa: true, permission: "finance:review" }),
+    ).toBe(true);
+    expect(
+      canPlatform({ role: "SUPPORT", mfa: true, permission: "finance:review" }),
+    ).toBe(false);
+    expect(
+      canPlatform({
+        role: "FINANCE",
+        mfa: true,
+        permission: "merchant:decide",
+      }),
+    ).toBe(false);
+  });
+});

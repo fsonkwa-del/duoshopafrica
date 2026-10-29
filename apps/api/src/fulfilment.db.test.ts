@@ -242,6 +242,23 @@ after(async () => {
     where: { tenantId },
     select: { id: true },
   });
+  // Écritures comptables créées au paiement (B08), sans clé étrangère vers leur source.
+  const ledgerSources = [
+    ...(await db.sellerOrder.findMany({
+      where: { tenantId: tenantId },
+      select: { id: true },
+    })),
+    ...(await db.payment.findMany({
+      where: { buyerId: userId },
+      select: { id: true },
+    })),
+  ].map((x) => x.id);
+  await db.ledgerEntry.deleteMany({
+    where: { journal: { sourceId: { in: ledgerSources } } },
+  });
+  await db.ledgerJournal.deleteMany({
+    where: { sourceId: { in: ledgerSources } },
+  });
   await db.notification.deleteMany({ where: { userId } });
   await db.handoverCode.deleteMany({
     where: { sellerOrderId: { in: sellerOrders.map((s) => s.id) } },

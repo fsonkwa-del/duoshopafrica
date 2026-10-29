@@ -228,6 +228,21 @@ after(async () => {
   await db.payment.deleteMany({ where: { buyerId: userId } });
   await db.configAudit.deleteMany({ where: { entityId: { in: ids.methods } } });
   await db.paymentMethod.deleteMany({ where: { id: { in: ids.methods } } });
+  // Écritures comptables créées au paiement (B08), sans clé étrangère vers leur source.
+  const ledgerSources = [
+    ...(await db.sellerOrder.findMany({
+      where: { tenantId: tenantId },
+      select: { id: true },
+    })),
+    // Paiements déjà supprimés plus haut : identifiants relevés en début de nettoyage.
+    ...payments,
+  ].map((x) => x.id);
+  await db.ledgerEntry.deleteMany({
+    where: { journal: { sourceId: { in: ledgerSources } } },
+  });
+  await db.ledgerJournal.deleteMany({
+    where: { sourceId: { in: ledgerSources } },
+  });
   // Jalons créés automatiquement au paiement (B07).
   await db.handoverCode.deleteMany({ where: { buyerId: userId } });
   await db.fulfilmentEvent.deleteMany({ where: { tenantId } });

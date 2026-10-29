@@ -20,6 +20,7 @@ export default async function DemoSignIn({
     { key: "buyer", label: d.buyer, hint: d.buyerHint },
     { key: "seller", label: d.seller, hint: d.sellerHint },
     { key: "admin", label: d.admin, hint: d.adminHint },
+    { key: "finance", label: d.finance, hint: d.financeHint },
   ] as const;
   return (
     <AccountShell locale={locale} path="/dev-login" signedIn={false}>

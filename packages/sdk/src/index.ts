@@ -7,9 +7,12 @@ import {
   CART_COOKIE,
   type CartDTO,
   type CatalogPageDTO,
+  type CommissionRuleDTO,
   type DeliveryContactDTO,
   type DeliveryMethodDTO,
   type DeliveryOptionsDTO,
+  type EarningsDTO,
+  type FinanceReportDTO,
   type HealthResponse,
   type MeDTO,
   type MerchantDecisionDTO,
@@ -539,6 +542,67 @@ export const markNotificationsRead = (
     "/v1/notifications/read",
     sessionToken,
     { origin, body: {} },
+  );
+// ---------- Finance (B08) ----------
+export const getCommissionRules = (baseUrl: string, sessionToken: string) =>
+  authorized<{
+    rules: CommissionRuleDTO[];
+    stores: { id: string; name: string; slug: string }[];
+    canConfigure: boolean;
+  }>(baseUrl, "/v1/admin/commission-rules", sessionToken);
+export const createCommissionRule = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: {
+    storeId?: string;
+    basisPoints: number;
+    label: string;
+    validFrom: string;
+  },
+) =>
+  authorized<CommissionRuleDTO>(
+    baseUrl,
+    "/v1/admin/commission-rules",
+    sessionToken,
+    { origin, body },
+  );
+export const closeCommissionRule = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  ruleId: string,
+  validTo: string,
+) =>
+  authorized<{ validTo: string }>(
+    baseUrl,
+    `/v1/admin/commission-rules/${encodeURIComponent(ruleId)}/close`,
+    sessionToken,
+    { origin, body: { validTo } },
+  );
+export const getFinanceReport = (
+  baseUrl: string,
+  sessionToken: string,
+  period: { from?: string; to?: string },
+) =>
+  authorized<FinanceReportDTO>(
+    baseUrl,
+    `/v1/admin/finance?${new URLSearchParams(
+      Object.entries(period).filter((e): e is [string, string] =>
+        Boolean(e[1]),
+      ),
+    )}`,
+    sessionToken,
+  );
+export const getEarnings = (
+  baseUrl: string,
+  sessionToken: string,
+  storeId: string,
+) =>
+  authorized<EarningsDTO>(
+    baseUrl,
+    `/v1/stores/${store(storeId)}/earnings`,
+    sessionToken,
   );
 export async function logout(
   baseUrl: string,

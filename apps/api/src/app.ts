@@ -8,6 +8,7 @@ import { accountRoutes } from "./account";
 import { cartRoutes } from "./cart";
 import { catalogRoutes } from "./catalog";
 import { devLoginRoutes } from "./dev-login";
+import { financeRoutes } from "./finance";
 import { fulfilmentRoutes } from "./fulfilment";
 import { mediaRoutes } from "./media";
 import { merchantRoutes } from "./merchant";
@@ -141,6 +142,7 @@ export async function createApp({
     await app.register(orderRoutes, { db, webOrigin });
     await app.register(paymentRoutes, { db, webOrigin, providers });
     await app.register(fulfilmentRoutes, { db, webOrigin });
+    await app.register(financeRoutes, { db, webOrigin });
     await app.register(mediaRoutes, {
       db,
       webOrigin,

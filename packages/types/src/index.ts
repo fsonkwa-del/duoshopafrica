@@ -337,3 +337,53 @@ export interface NotificationDTO {
   createdAt: string;
   read: boolean;
 }
+
+// ---------- Commissions et rapprochement (B08) ----------
+export interface CommissionRuleDTO {
+  id: string;
+  storeId: string | null;
+  storeName: string | null;
+  basisPoints: number;
+  label: string;
+  validFrom: string;
+  validTo: string | null;
+  createdAt: string;
+}
+export interface FinanceAnomalyDTO {
+  kind:
+    | "payment_not_journaled"
+    | "no_commission_rule"
+    | "daily_mismatch"
+    | "unbalanced_journal";
+  reference: string;
+  expected: string | null;
+  posted: string | null;
+}
+export interface FinanceReportDTO {
+  from: string;
+  to: string;
+  balances: { account: string; currency: string; amount: string }[];
+  payables: {
+    tenantId: string;
+    stores: string | null;
+    currency: string;
+    amount: string;
+  }[];
+  anomalies: FinanceAnomalyDTO[];
+  daily: { day: string; settled: string; posted: string }[];
+}
+export interface EarningsDTO {
+  lines: {
+    sellerOrderId: string;
+    reference: string;
+    createdAt: string;
+    fulfilmentStatus: FulfilmentStatusDTO;
+    gross: MoneyDTO | null;
+    commissionBasisPoints: number | null;
+    commission: MoneyDTO | null;
+    net: MoneyDTO | null;
+  }[];
+  // Net dû pour les sous-commandes pas encore remises / déjà remises (commission acquise).
+  pending: MoneyDTO;
+  earned: MoneyDTO;
+}

@@ -9,6 +9,7 @@ export type Permission =
   | "inventory:write"
   | "order:read"
   | "order:fulfil"
+  | "earnings:read"
   | "team:manage";
 const grants: Record<StoreRole, readonly Permission[]> = {
   OWNER: [
@@ -20,6 +21,7 @@ const grants: Record<StoreRole, readonly Permission[]> = {
     "inventory:write",
     "order:read",
     "order:fulfil",
+    "earnings:read",
     "team:manage",
   ],
   MANAGER: [
@@ -30,6 +32,7 @@ const grants: Record<StoreRole, readonly Permission[]> = {
     "inventory:write",
     "order:read",
     "order:fulfil",
+    "earnings:read",
   ],
   CATALOG: ["store:read", "catalog:write", "catalog:publish"],
   FULFILLMENT: ["store:read", "inventory:write", "order:read", "order:fulfil"],
@@ -51,9 +54,11 @@ const allowedWhile: Record<TenantStatus, readonly Permission[]> = {
     "inventory:write",
     "order:read",
     "order:fulfil",
+    "earnings:read",
     "team:manage",
   ],
-  SUSPENDED: [],
+  // Suspendu : aucune action, mais le vendeur garde la vue de ce qui lui est dû.
+  SUSPENDED: ["earnings:read"],
 };
 export interface Membership {
   userId: string;
@@ -94,20 +99,26 @@ export function commissionMinor(amount: bigint, basisPoints: number): bigint {
 }
 
 // Personnel plateforme : toute permission exige une session dont le second facteur est attesté.
-export type PlatformRole = "ADMIN" | "SUPPORT";
+// FINANCE : fonction financière séparée des opérations (cahier : séparer opérationnel/finance/sécurité).
+export type PlatformRole = "ADMIN" | "SUPPORT" | "FINANCE";
 export type PlatformPermission =
   | "merchant:review"
   | "merchant:decide"
   | "payment:review"
-  | "payment:configure";
+  | "payment:configure"
+  | "finance:review"
+  | "finance:configure";
 const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
   ADMIN: [
     "merchant:review",
     "merchant:decide",
     "payment:review",
     "payment:configure",
+    "finance:review",
   ],
   SUPPORT: ["merchant:review", "payment:review"],
+  // Les règles de commission ne sont modifiables que par la finance ; l'admin les consulte.
+  FINANCE: ["payment:review", "finance:review", "finance:configure"],
 };
 export function canPlatform(input: {
   role: PlatformRole | null;
