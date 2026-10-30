@@ -34,6 +34,8 @@ export default defineConfig({
       env: {
         WEB_ORIGIN: web,
         PAYMENTS_MOCK_ENABLED: "true",
+        // Photos du catalogue de démonstration, servies par le site (apps/web/public).
+        MEDIA_PUBLIC_BASE_URL: web,
         PAYMENTS_MOCK_SECRET: randomBytes(24).toString("hex"),
       },
     },

@@ -12,6 +12,9 @@ const oidc = oidcSettingsFromEnv(process.env);
 const storage = storageFromEnv(process.env);
 const providers = providersFromEnv(process.env);
 const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
+const trustProxy = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+if (!Number.isInteger(trustProxy) || trustProxy < 0 || trustProxy > 5)
+  throw new Error("TRUST_PROXY_HOPS must be an integer between 0 and 5");
 if (devLogin && process.env.NODE_ENV === "production")
   throw new Error("DEV_LOGIN_ENABLED is forbidden in production");
 const app = await createApp({
@@ -22,6 +25,7 @@ const app = await createApp({
   ...(storage ? { storage } : {}),
   providers,
   devLogin,
+  trustProxy,
   ...(process.env.MEDIA_PUBLIC_BASE_URL
     ? { mediaBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL }
     : {}),

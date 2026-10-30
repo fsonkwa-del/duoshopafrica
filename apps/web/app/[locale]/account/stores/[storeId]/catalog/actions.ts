@@ -7,6 +7,7 @@ import {
   createProduct,
   moveStock,
   requestMediaUpload,
+  setProductCategory,
 } from "@duoshop/sdk";
 import type { ProductStatusDTO } from "@duoshop/types";
 import { redirect } from "next/navigation";
@@ -41,9 +42,11 @@ export async function createProductAction(form: FormData) {
     }))
     .filter((v) => v.sku || v.label || v.priceMinor);
   const description = field(form, "description");
+  const categoryId = field(form, "categoryId");
   const result = await createProduct(apiUrl, token, webOrigin, storeId, {
     title: field(form, "title"),
     ...(description ? { description } : {}),
+    ...(categoryId ? { categoryId } : {}),
     variants,
   });
   finish(page, result, "created");
@@ -138,4 +141,18 @@ export async function requestPhotoUpload(input: {
         headers: result.data.upload.headers,
       }
     : { ok: false, error: result.error ?? "unknown" };
+}
+
+export async function changeCategoryAction(form: FormData) {
+  const { page, storeId, token } = await context(form);
+  const categoryId = field(form, "categoryId");
+  const result = await setProductCategory(
+    apiUrl,
+    token,
+    webOrigin,
+    storeId,
+    field(form, "productId"),
+    categoryId || null,
+  );
+  finish(page, result, "category");
 }

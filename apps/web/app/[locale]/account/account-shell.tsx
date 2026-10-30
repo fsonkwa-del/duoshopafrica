@@ -3,8 +3,12 @@ import { type Locale, messages } from "@duoshop/i18n";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { GlobeIcon } from "../icons";
 import { signOut } from "./actions";
 
+// Espaces compte, vendeur et administration : même en-tête blanc pleine largeur que la
+// boutique, contenu fluide. Un menu latéral (SideNav) placé en premier enfant forme une
+// colonne encadrée à gauche (voir .account:has(> .side-nav)).
 export function AccountShell({
   locale,
   path,
@@ -19,29 +23,35 @@ export function AccountShell({
   const t = messages[locale];
   const other = locale === "fr" ? "en" : "fr";
   return (
-    <div className="shell">
+    <div className="shop-page">
       <a className="skip" href="#main">
         {locale === "fr" ? "Aller au contenu" : "Skip to content"}
       </a>
-      <header>
-        <Link className="wordmark" href={`/${locale}`}>
-          {brand.name}
-        </Link>
-        <nav aria-label={t.account} className="account-nav">
-          <Link href={`/${other}${path}`} hrefLang={other}>
-            {t.language}
+      <header className="shop-header">
+        <div className="shop-header-inner">
+          <Link className="wordmark brand-mark" href={`/${locale}`}>
+            {brand.name}
           </Link>
-          {signedIn && (
-            <form action={signOut}>
-              <input type="hidden" name="locale" value={locale} />
-              <button type="submit" className="link-button">
-                {t.signOut}
-              </button>
-            </form>
-          )}
-        </nav>
+          <nav aria-label={t.account} className="header-tools">
+            <Link
+              href={`/${other}${path}`}
+              hrefLang={other}
+              className="lang-switch"
+            >
+              <GlobeIcon /> {t.language}
+            </Link>
+            {signedIn && (
+              <form action={signOut}>
+                <input type="hidden" name="locale" value={locale} />
+                <button type="submit" className="link-button">
+                  {t.signOut}
+                </button>
+              </form>
+            )}
+          </nav>
+        </div>
       </header>
-      <main id="main" className="account">
+      <main id="main" className="shop account">
         {children}
       </main>
     </div>

@@ -45,7 +45,7 @@ export default async function Commissions({
   const now = Date.now();
   return (
     <AccountShell locale={locale} path={path} signedIn>
-      <AdminNav locale={locale} />
+      <AdminNav locale={locale} current={path} />
       <h1>{c.title}</h1>
       <p>{c.intro}</p>
       {query.saved && <Notice>{c.saved}</Notice>}

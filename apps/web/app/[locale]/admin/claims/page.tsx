@@ -52,7 +52,7 @@ export default async function AdminClaims({
   const { claims, canDecide } = result.data;
   return (
     <AccountShell locale={locale} path={`${path}?status=${status}`} signedIn>
-      <AdminNav locale={locale} />
+      <AdminNav locale={locale} current={path} />
       <h1>{c.adminTitle}</h1>
       <form className="filters" method="get">
         <label>

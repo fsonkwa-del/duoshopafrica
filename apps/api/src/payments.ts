@@ -320,6 +320,10 @@ export async function paymentRoutes(
         null;
       try {
         const result = await provider.initiate({
+          kind: method.kind,
+          // Adresses publiques : passent par l'origine du site (réécriture /v1 vers l'API).
+          notifyUrl: `${webOrigin}/v1/payments/webhooks/${provider.key}`,
+          returnUrl: `${webOrigin}/v1/payments/return?${new URLSearchParams({ order: orderId })}`,
           paymentId,
           amountMinor: payment.amountMinor,
           currency: payment.currency,
@@ -355,11 +359,16 @@ export async function paymentRoutes(
 
   // ---------- Webhooks prestataires : corps brut, signature vérifiée avant toute écriture ----------
   await app.register(async (hooks) => {
-    hooks.addContentTypeParser(
+    // Corps brut conservé : JSON (signatures HMAC) ou formulaire (notifications CinetPay).
+    for (const type of [
       "application/json",
-      { parseAs: "buffer", bodyLimit: 65536 },
-      (_request, body, done) => done(null, body),
-    );
+      "application/x-www-form-urlencoded",
+    ])
+      hooks.addContentTypeParser(
+        type,
+        { parseAs: "buffer", bodyLimit: 65536 },
+        (_request, body, done) => done(null, body),
+      );
     hooks.post(
       "/v1/payments/webhooks/:provider",
       {
@@ -381,7 +390,7 @@ export async function paymentRoutes(
         const raw = request.body;
         if (!Buffer.isBuffer(raw))
           return reply.code(400).send({ error: "invalid_request" });
-        const verified = provider.verifyWebhook(raw, request.headers);
+        const verified = await provider.verifyWebhook(raw, request.headers);
         if (!verified.ok) {
           request.log.warn(
             { provider: key, reason: verified.reason },
@@ -392,7 +401,8 @@ export async function paymentRoutes(
             .send({ error: "invalid_signature" });
         }
         const e = verified.event;
-        const payloadHash = createHash("sha256").update(raw).digest("hex");
+        const payloadHash =
+          e.fingerprint ?? createHash("sha256").update(raw).digest("hex");
         const paymentId = uuidPattern.test(e.paymentId) ? e.paymentId : null;
         // Persistance et effet dans une seule transaction ; l'ACK suit le COMMIT.
         const [row] = await asRuntime(
@@ -411,6 +421,32 @@ export async function paymentRoutes(
         return { received: true, outcome: row?.outcome };
       },
     );
+  });
+
+  // ---------- Retour du payeur depuis la page du prestataire (GET ou POST) ----------
+  // Simple redirection vers la commande : le statut affiché est relu sur le serveur, jamais déduit
+  // de ce retour. Aucun paramètre du prestataire n'est interprété.
+  await app.register(async (back) => {
+    back.addContentTypeParser(
+      "application/x-www-form-urlencoded",
+      { parseAs: "string", bodyLimit: 16384 },
+      (_request, _body, done) => done(null, {}),
+    );
+    back.route({
+      method: ["GET", "POST"],
+      url: "/v1/payments/return",
+      schema: {
+        querystring: {
+          type: "object",
+          required: ["order"],
+          properties: { order: uuid },
+        },
+      },
+      handler: async (request, reply) => {
+        const { order } = request.query as { order: string };
+        return reply.redirect(`${webOrigin}/fr/orders/${order}`, 303);
+      },
+    });
   });
 
   // ---------- Mode MOCK uniquement : simulateur de validation sur téléphone ----------

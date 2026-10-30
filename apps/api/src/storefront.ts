@@ -7,6 +7,7 @@ import type {
   PublicProductDTO,
 } from "@duoshop/types";
 import type { FastifyInstance } from "fastify";
+import { categoryScope } from "./categories";
 import { errorSchema as error } from "./guards";
 
 export const PAGE_SIZE = 24;
@@ -25,7 +26,10 @@ interface SearchRow {
   storeName: string;
   storeSlug: string;
   priceFrom: bigint;
+  priceTo: bigint;
   currency: string;
+  sold: bigint;
+  storeSince: number;
   available: number;
   imageKey: string | null;
   altFr: string | null;
@@ -53,6 +57,11 @@ export async function storefrontRoutes(
           additionalProperties: false,
           properties: {
             q: { type: "string", maxLength: 100 },
+            category: {
+              type: "string",
+              pattern: "^[a-z0-9]+(-[a-z0-9]+)*$",
+              maxLength: 60,
+            },
             page: { type: "integer", minimum: 1, maximum: 50, default: 1 },
             lang: { enum: ["fr", "en"], default: "fr" },
           },
@@ -61,27 +70,31 @@ export async function storefrontRoutes(
       },
     },
     async (request): Promise<CatalogPageDTO> => {
-      const { q, page, lang } = request.query as {
+      const { q, page, lang, category } = request.query as {
         q?: string;
+        category?: string;
         page: number;
         lang: "fr" | "en";
       };
       const tsquery = q ? toSearchQuery(q) : null;
       if (q && !tsquery) return { items: [], page, hasMore: false };
       const offset = (page - 1) * PAGE_SIZE;
-      const rows = await asRuntime(
-        db,
-        {},
-        (tx) =>
-          tx.$queryRaw<SearchRow[]>`
+      const rows = await asRuntime(db, {}, async (tx) => {
+        // Catégorie et ses sous-catégories ; catégorie inconnue ou inactive : aucun résultat.
+        const scope = category ? await categoryScope(tx, category) : null;
+        if (category && !scope) return [];
+        return tx.$queryRaw<SearchRow[]>`
           SELECT p."id", p."title", s."name" AS "storeName", s."slug" AS "storeSlug",
-                 price."priceFrom", price."currency",
+                 price."priceFrom", price."priceTo", price."currency",
+                 product_units_sold(p."id") AS "sold",
+                 extract(year FROM s."createdAt")::int AS "storeSince",
                  coalesce(stock.available, 0)::int AS "available",
                  img."publicKey" AS "imageKey", img."altFr", img."altEn", img."width", img."height"
             FROM "Product" p
             JOIN "Store" s ON s."id" = p."storeId"
             JOIN LATERAL (
-              SELECT min(v."priceMinor") AS "priceFrom", min(v."currency") AS "currency"
+              SELECT min(v."priceMinor") AS "priceFrom", max(v."priceMinor") AS "priceTo",
+                     min(v."currency") AS "currency"
                 FROM "ProductVariant" v WHERE v."productId" = p."id" AND v."active"
             ) price ON price."priceFrom" IS NOT NULL
             LEFT JOIN LATERAL (
@@ -96,14 +109,15 @@ export async function storefrontRoutes(
                ORDER BY m."position" LIMIT 1
             ) img ON true
            WHERE p."status" = 'PUBLISHED'
+             AND (${scope}::text[] IS NULL OR p."categoryId"::text = ANY(${scope}::text[]))
              AND (${tsquery}::text IS NULL
                   OR p."search" @@ to_tsquery('simple', search_unaccent(${tsquery}::text)))
            ORDER BY CASE WHEN ${tsquery}::text IS NULL THEN 0
                          ELSE ts_rank(p."search", to_tsquery('simple', search_unaccent(${tsquery}::text)))
                     END DESC,
                     p."publishedAt" DESC NULLS LAST, p."id"
-           LIMIT ${PAGE_SIZE + 1} OFFSET ${offset}`,
-      );
+           LIMIT ${PAGE_SIZE + 1} OFFSET ${offset}`;
+      });
       const items: CatalogItemDTO[] = rows.slice(0, PAGE_SIZE).map((row) => {
         const url = mediaUrl(mediaBaseUrl, row.imageKey);
         const image: MediaDTO | null = url
@@ -122,6 +136,12 @@ export async function storefrontRoutes(
             amountMinor: row.priceFrom.toString(),
             currency: row.currency,
           },
+          priceTo: {
+            amountMinor: row.priceTo.toString(),
+            currency: row.currency,
+          },
+          sold: Number(row.sold),
+          storeSince: row.storeSince,
           availability: availabilityOf(row.available),
           image,
         };
@@ -158,7 +178,25 @@ export async function storefrontRoutes(
             id: true,
             title: true,
             description: true,
-            store: { select: { name: true, slug: true } },
+            store: {
+              select: {
+                name: true,
+                slug: true,
+                createdAt: true,
+                deliveryFeeMinor: true,
+                pickupEnabled: true,
+                pickupInstructions: true,
+              },
+            },
+            category: {
+              select: {
+                slug: true,
+                nameFr: true,
+                nameEn: true,
+                active: true,
+                parent: { select: { slug: true, nameFr: true, nameEn: true } },
+              },
+            },
             variants: {
               where: { active: true },
               orderBy: { createdAt: "asc" },
@@ -186,11 +224,41 @@ export async function storefrontRoutes(
       );
       if (!product || product.variants.length === 0)
         return reply.code(404).send({ error: "not_found" });
+      const name = (c: { nameFr: string; nameEn: string }) =>
+        lang === "en" ? c.nameEn : c.nameFr;
       const body: PublicProductDTO = {
         id: product.id,
+        category:
+          product.category?.active === true
+            ? {
+                slug: product.category.slug,
+                name: name(product.category),
+                parent: product.category.parent
+                  ? {
+                      slug: product.category.parent.slug,
+                      name: name(product.category.parent),
+                    }
+                  : null,
+              }
+            : null,
         title: product.title,
         description: product.description,
-        store: product.store,
+        store: { name: product.store.name, slug: product.store.slug },
+        seller: {
+          since: product.store.createdAt.getUTCFullYear(),
+          homeDelivery:
+            product.store.deliveryFeeMinor === null
+              ? null
+              : {
+                  fee: {
+                    amountMinor: product.store.deliveryFeeMinor.toString(),
+                    currency: product.variants[0]?.currency ?? "XAF",
+                  },
+                },
+          pickup: product.store.pickupEnabled
+            ? { instructions: product.store.pickupInstructions }
+            : null,
+        },
         variants: product.variants.map((v) => ({
           id: v.id,
           label: v.label,

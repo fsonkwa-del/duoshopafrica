@@ -5,6 +5,7 @@ import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiUrl, sessionToken } from "../../../../../../lib/session";
+import { SellerNav } from "../../../../admin/admin-nav";
 import { AccountShell, SignIn } from "../../../account-shell";
 import { advanceAction } from "./actions";
 
@@ -42,6 +43,7 @@ export default async function SellerOrders({
     );
   return (
     <AccountShell locale={locale} path={path} signedIn>
+      <SellerNav locale={locale} storeId={storeId} current={path} />
       {back}
       <h1>{o.sellerTitle}</h1>
       <Notice>{o.sellerNotice}</Notice>

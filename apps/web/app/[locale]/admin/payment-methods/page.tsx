@@ -177,7 +177,7 @@ export default async function PaymentMethods({
   const { methods, providers } = result.data;
   return (
     <AccountShell locale={locale} path={path} signedIn>
-      <AdminNav locale={locale} />
+      <AdminNav locale={locale} current={path} />
       <h1>{m.title}</h1>
       <p>{m.intro}</p>
       {query.result === "saved" && <Notice>{m.saved}</Notice>}

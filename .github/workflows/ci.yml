@@ -35,3 +35,21 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # Parcours navigateur (mobile + bureau, axe) sur les builds de production ci-dessus.
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-results
+          path: .local/e2e-results
+          retention-days: 7
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Construit chaque cible du Dockerfile de staging (aucune publication d'image).
+      - run: |
+          for target in migrate api worker web; do
+            docker build --file deploy/Dockerfile --target "$target" --tag "duoshop-$target:ci" .
+          done

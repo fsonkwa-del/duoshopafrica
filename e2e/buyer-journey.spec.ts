@@ -34,7 +34,10 @@ test("a visitor finds the product from the home page and fills a cart without an
   const page = buyerPage;
   await page.goto("/fr");
   await expect(
-    page.getByRole("heading", { level: 1, name: /boutiques de Douala/ }),
+    page.getByRole("heading", {
+      level: 1,
+      name: /Bienvenue sur DuoShopAfrica/,
+    }),
   ).toBeVisible();
   await page.getByRole("searchbox").first().fill(seed.productTitle);
   await page.getByRole("searchbox").first().press("Enter");
@@ -42,9 +45,12 @@ test("a visitor finds the product from the home page and fills a cart without an
   await page.getByRole("button", { name: "Ajouter au panier" }).click();
   await expect(page).toHaveURL(/ok=add/);
   await expect(
-    page.getByRole("link", { name: /Panier : 1 articles/ }),
+    page.getByRole("link", { name: /Panier : 1 articles/ }).first(),
   ).toBeVisible();
-  await page.getByRole("link", { name: /Panier : 1/ }).click();
+  await page
+    .getByRole("link", { name: /Panier : 1/ })
+    .first()
+    .click();
   await expect(page.getByText(/Pas encore de compte/)).toBeVisible();
   await page.getByRole("link", { name: "Passer la commande" }).click();
   await expect(

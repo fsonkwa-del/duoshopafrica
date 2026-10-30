@@ -13,6 +13,10 @@ export interface InitiatePaymentInput {
   methodCode: string;
   payerPhone: string | null;
   description: string;
+  kind: "MOBILE_MONEY" | "CARD" | "BANK_TRANSFER" | "WALLET";
+  // URL publique de notification (webhook) et de retour du payeur, calculées par l'API.
+  notifyUrl: string;
+  returnUrl: string;
 }
 
 export type NextAction =
@@ -38,6 +42,9 @@ export interface VerifiedPaymentEvent {
   failureCode: string | null;
   // Charge utile conservée pour l'audit et le rapprochement (jamais de données carte).
   payload: unknown;
+  // Empreinte de dédoublonnage fournie par l'adaptateur quand le corps brut varie d'un envoi
+  // à l'autre pour un même fait (ex. statut vérifié par appel API) ; sinon SHA-256 du corps.
+  fingerprint?: string;
 }
 
 export type WebhookVerification =
@@ -52,10 +59,12 @@ export interface PaymentProvider {
   readonly key: string;
   readonly mode: PaymentMode;
   initiate(input: InitiatePaymentInput): Promise<InitiatePaymentResult>;
-  // Vérifie la signature sur le corps brut, la fraîcheur et la forme, avant toute écriture.
+  // Vérifie l'authenticité (signature sur le corps brut, ou statut relu chez le prestataire),
+  // la fraîcheur et la forme, avant toute écriture. Une erreur réseau lève une exception :
+  // le webhook répond alors 500 et le prestataire réessaie.
   verifyWebhook(
     rawBody: Buffer,
     headers: Record<string, string | string[] | undefined>,
     now?: Date,
-  ): WebhookVerification;
+  ): WebhookVerification | Promise<WebhookVerification>;
 }

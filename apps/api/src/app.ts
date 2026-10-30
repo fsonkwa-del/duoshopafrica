@@ -7,6 +7,7 @@ import Fastify from "fastify";
 import { accountRoutes } from "./account";
 import { cartRoutes } from "./cart";
 import { catalogRoutes } from "./catalog";
+import { categoryRoutes } from "./categories";
 import { claimRoutes } from "./claims";
 import { devLoginRoutes } from "./dev-login";
 import { financeRoutes } from "./finance";
@@ -33,6 +34,8 @@ export interface AppOptions {
   providers?: PaymentProviders;
   // Développement uniquement : profils de démonstration quand Zitadel est absent.
   devLogin?: boolean;
+  // Nombre de reverse proxies de confiance devant l'API (IP réelle pour rate limit et logs).
+  trustProxy?: number;
 }
 export async function createApp({
   logger = false,
@@ -44,6 +47,7 @@ export async function createApp({
   storage,
   providers = new Map(),
   devLogin = false,
+  trustProxy = 0,
 }: AppOptions = {}) {
   const app = Fastify({
     logger: logger
@@ -69,7 +73,11 @@ export async function createApp({
     // Validation stricte : un champ inconnu est refusé (400), jamais retiré en silence.
     ajv: { customOptions: { removeAdditional: false } },
     bodyLimit: 1048576,
-    trustProxy: false,
+    // Sans proxy déclaré, l'en-tête X-Forwarded-For est ignoré (sinon falsifiable par le client).
+    trustProxy:
+      trustProxy > 0
+        ? (_address: string, hop: number) => hop < trustProxy
+        : false,
   });
   await app.register(swagger, {
     openapi: { info: { title: "DuoShopAfrica foundations", version: "0.1.0" } },
@@ -139,6 +147,7 @@ export async function createApp({
       db,
       ...(mediaBaseUrl ? { mediaBaseUrl } : {}),
     });
+    await app.register(categoryRoutes, { db, webOrigin });
     await app.register(cartRoutes, { db, webOrigin });
     await app.register(orderRoutes, { db, webOrigin });
     await app.register(paymentRoutes, { db, webOrigin, providers });

@@ -1,0 +1,62 @@
+# Pré-production portable (VPS ou tout hôte Docker). Mode TEST : aucun argent réel.
+# Usage : docker compose -f deploy/compose.staging.yaml --env-file deploy/staging.env up -d --build
+name: duoshop-staging
+x-app: &app
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  env_file: [staging.env]
+  restart: unless-stopped
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: duoshop
+      POSTGRES_USER: duoshop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U duoshop -d duoshop"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    <<: *app
+    build: { context: .., dockerfile: deploy/Dockerfile, target: migrate }
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+  api:
+    <<: *app
+    build: { context: .., dockerfile: deploy/Dockerfile, target: api }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+  worker:
+    <<: *app
+    build: { context: .., dockerfile: deploy/Dockerfile, target: worker }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+  web:
+    <<: *app
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+      args: { API_INTERNAL_URL: "http://api:4000" }
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    depends_on: [api]
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN requis}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [web]
+    restart: unless-stopped
+volumes:
+  postgres-data:
+  caddy-data:

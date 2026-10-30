@@ -40,7 +40,7 @@ export default async function PaymentsToHandle({
       : code;
   return (
     <AccountShell locale={locale} path={path} signedIn>
-      <AdminNav locale={locale} />
+      <AdminNav locale={locale} current={path} />
       <h1>{p.title}</h1>
       <p>{p.intro}</p>
       {payments.length === 0 ? (

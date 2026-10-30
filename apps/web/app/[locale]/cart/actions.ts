@@ -26,6 +26,9 @@ export async function setLineAction(form: FormData) {
     variantId: String(form.get("variantId") ?? ""),
     quantity,
   });
+  // « Acheter maintenant » : même ajout au panier, puis directement le passage de commande.
+  if (result.ok && form.get("intent") === "buy" && quantity > 0)
+    redirect(`/${locale}/checkout`);
   redirect(
     result.ok
       ? `${back}?ok=${quantity === 0 ? "removed" : "added"}`

@@ -1,6 +1,7 @@
 import { brand } from "@duoshop/config";
 import { isLocale, locales } from "@duoshop/i18n";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 import "../globals.css";
@@ -29,6 +30,8 @@ export default async function Layout({
 }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
+  // Lecture des en-têtes : rendu dynamique garanti, donc nonce CSP appliqué aux scripts Next.
+  await headers();
   const style = Object.fromEntries(
     Object.entries(brand.colors).map(([key, value]) => [`--${key}`, value]),
   ) as CSSProperties;

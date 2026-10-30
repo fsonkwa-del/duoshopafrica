@@ -5,6 +5,7 @@ import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiUrl, sessionToken } from "../../../../../../lib/session";
+import { SellerNav } from "../../../../admin/admin-nav";
 import { AccountShell, SignIn } from "../../../account-shell";
 
 export default async function Earnings({
@@ -42,6 +43,7 @@ export default async function Earnings({
   const { lines, pending, earned, held } = result.data;
   return (
     <AccountShell locale={locale} path={path} signedIn>
+      <SellerNav locale={locale} storeId={storeId} current={path} />
       {back}
       <h1>{e.title}</h1>
       <p>{e.intro}</p>

@@ -82,3 +82,10 @@ L'adaptateur Prisma envoie les dates sans fuseau. `createDatabase` force `TimeZo
 2. `createdb <base_vérif>` puis `pg_restore -d <base_vérif> --no-owner --exit-on-error duoshop.dump`. Le rôle `duoshop_app` doit exister dans le cluster cible : il est créé par la migration `runtime_role_rls`.
 3. Contrôles : `prisma migrate status` à jour ; mêmes nombres de migrations, commandes et lignes de journal ; solde du journal = 0 ; politiques RLS et déclencheurs présents ; `SET ROLE duoshop_app` sans contexte ne voit aucune commande.
 4. En production : sauvegardes managées avec PITR et test de restauration mensuel, RPO/RTO à fixer avec l'hébergeur.
+
+## Catalogue de démonstration (développement)
+
+1. Collecte des images libres (Wikimedia Commons, licences PD, CC0, CC BY, CC BY-SA) dans `.local/demo-images` (`raw/` et `manifest.json`), avec auteur, licence et source.
+2. `pnpm --filter @duoshop/worker demo:catalog` : remplace les tenants `DEMO-CATALOGUE…` et écrit les WebP et `credits.json` dans `apps/web/public/demo-media`.
+3. Lancer l'API avec `MEDIA_PUBLIC_BASE_URL=http://localhost:3000`.
+4. Ne jamais utiliser en production. Les photos restent hors de Git. La page `/fr/credits` doit rester accessible.

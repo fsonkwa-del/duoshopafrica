@@ -7,7 +7,8 @@
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/main.js --external:@prisma/* --external:pg --external:dotenv --external:sharp --external:@aws-sdk/*",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test:db": "tsx --test src/media-job.db.test.ts"
+    "test:db": "tsx --test src/media-job.db.test.ts",
+    "demo:catalog": "tsx src/demo-catalog.ts ../../.local/demo-images"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1152.0",

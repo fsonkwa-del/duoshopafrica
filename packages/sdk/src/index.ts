@@ -1,5 +1,6 @@
 import {
   type AddressDTO,
+  type AdminCategoryDTO,
   type AdminPaymentDTO,
   type AdminPaymentMethodDTO,
   type AdminProviderEventDTO,
@@ -7,6 +8,7 @@ import {
   CART_COOKIE,
   type CartDTO,
   type CatalogPageDTO,
+  type CategoryDTO,
   type ClaimDTO,
   type ClaimReasonDTO,
   type CommissionRuleDTO,
@@ -183,6 +185,7 @@ export const createProduct = (
   body: {
     title: string;
     description?: string;
+    categoryId?: string;
     variants: { sku: string; label: string; priceMinor: string }[];
   },
 ) =>
@@ -242,10 +245,11 @@ export const moveStock = (
 // Vitrine : lecture publique, aucun cookie transmis (rien de personnel dans ces réponses).
 export async function searchCatalog(
   baseUrl: string,
-  query: { q?: string; page?: number; lang: "fr" | "en" },
+  query: { q?: string; page?: number; lang: "fr" | "en"; category?: string },
 ): Promise<CatalogPageDTO> {
   const params = new URLSearchParams({ lang: query.lang });
   if (query.q) params.set("q", query.q);
+  if (query.category) params.set("category", query.category);
   if (query.page && query.page > 1) params.set("page", String(query.page));
   const response = await fetch(
     new URL(`/v1/catalog/products?${params}`, baseUrl),
@@ -689,6 +693,69 @@ export const decideClaim = (
   authorized<{ status: string }>(
     baseUrl,
     `/v1/admin/claims/${encodeURIComponent(claimId)}/decide`,
+    sessionToken,
+    { origin, body },
+  );
+// ---------- Catégories ----------
+// Lecture publique : aucun cookie transmis.
+export async function getCategories(
+  baseUrl: string,
+  lang: "fr" | "en",
+): Promise<CategoryDTO[]> {
+  const response = await fetch(
+    new URL(`/v1/catalog/categories?${new URLSearchParams({ lang })}`, baseUrl),
+    { cache: "no-store" },
+  );
+  if (!response.ok)
+    throw new Error(`Categories request failed with status ${response.status}`);
+  return ((await response.json()) as { categories: CategoryDTO[] }).categories;
+}
+export const setProductCategory = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  productId: string,
+  categoryId: string | null,
+) =>
+  authorized<ProductDTO>(
+    baseUrl,
+    `/v1/stores/${store(storeId)}/products/${encodeURIComponent(productId)}/category`,
+    sessionToken,
+    { origin, body: { categoryId } },
+  );
+export const getAdminCategories = (baseUrl: string, sessionToken: string) =>
+  authorized<{ categories: AdminCategoryDTO[] }>(
+    baseUrl,
+    "/v1/admin/categories",
+    sessionToken,
+  );
+export const createCategory = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: {
+    slug: string;
+    parentId?: string;
+    nameFr: string;
+    nameEn: string;
+    position?: number;
+  },
+) =>
+  authorized<AdminCategoryDTO>(baseUrl, "/v1/admin/categories", sessionToken, {
+    origin,
+    body,
+  });
+export const updateCategory = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  categoryId: string,
+  body: { nameFr: string; nameEn: string; position: number; active: boolean },
+) =>
+  authorized<AdminCategoryDTO>(
+    baseUrl,
+    `/v1/admin/categories/${encodeURIComponent(categoryId)}`,
     sessionToken,
     { origin, body },
   );

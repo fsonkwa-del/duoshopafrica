@@ -28,3 +28,9 @@ Au Cameroun, l'acheteur paie surtout par Mobile Money (MTN, Orange), parfois par
 - Ajouter un opérateur chez un PSP déjà intégré se fait sans déploiement. Ajouter un nouveau PSP exige un adaptateur, un contrat, une sandbox et des tests réels.
 - Le filtrage se fait aujourd'hui par devise, car la commande n'a pas de pays. Il faudra aussi filtrer par pays avant toute expansion (B15).
 - Les frais de paiement facturés à l'acheteur ne sont pas modélisés : ils attendent les tarifs contractuels.
+
+## Premier adaptateur réel : CinetPay (30/10/2026, choix utilisateur)
+
+`packages/payments/src/cinetpay.ts` : initialisation `POST /v2/payment` (page hébergée, `transaction_id` = notre identifiant de paiement), notification traitée comme simple déclencheur, puis statut relu par `POST /v2/payment/check`. Seul ce statut relu fait foi, et apply_payment_event compare ensuite montant et devise. Empreinte de dédoublonnage calculée sur les faits relus, pas sur le corps.
+
+Écrit d'après des extraits de la documentation publique (site docs.cinetpay.com non joignable depuis le poste). **Non testé contre CinetPay** : contrat vérifié par tests unitaires et d'intégration sur API simulée seulement. Le jeton `x-token` n'est pas vérifié tant que l'ordre des champs signés n'est pas confirmé. Activation SANDBOX via l'environnement, LIVE sur déclaration explicite.

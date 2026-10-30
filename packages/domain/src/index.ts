@@ -113,7 +113,8 @@ export type PlatformPermission =
   | "finance:review"
   | "finance:configure"
   | "claim:review"
-  | "claim:decide";
+  | "claim:decide"
+  | "taxonomy:manage";
 const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
   ADMIN: [
     "merchant:review",
@@ -123,6 +124,7 @@ const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
     "finance:review",
     "claim:review",
     "claim:decide",
+    "taxonomy:manage",
   ],
   // Le support instruit les litiges ; l'arbitrage (décision d'argent) revient à l'ADMIN.
   SUPPORT: ["merchant:review", "payment:review", "claim:review"],

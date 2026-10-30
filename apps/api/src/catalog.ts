@@ -110,6 +110,7 @@ function toVariant(v: ProductRow["variants"][number]): VariantDTO {
 function toProduct(p: ProductRow): ProductDTO {
   return {
     id: p.id,
+    categoryId: p.categoryId,
     title: p.title,
     description: p.description,
     status: p.status,
@@ -172,6 +173,7 @@ export async function catalogRoutes(
           properties: {
             title: { type: "string", minLength: 2, maxLength: 140 },
             description: { type: "string", maxLength: 2000 },
+            categoryId: { type: "string", format: "uuid" },
             variants: {
               type: "array",
               minItems: 1,
@@ -200,6 +202,7 @@ export async function catalogRoutes(
       const body = request.body as {
         title: string;
         description?: string;
+        categoryId?: string;
         variants: { sku: string; label: string; priceMinor: string }[];
       };
       const variants = body.variants.map((v) => ({
@@ -221,6 +224,13 @@ export async function catalogRoutes(
           storeId,
           "catalog:write",
           async (tx, ctx) => {
+            if (
+              body.categoryId &&
+              !(await tx.category.count({
+                where: { id: body.categoryId, active: true },
+              }))
+            )
+              return { code: 400 as const, error: "invalid_category" };
             const location = await defaultLocation(tx, ctx);
             const product = await tx.product.create({
               data: {
@@ -228,6 +238,7 @@ export async function catalogRoutes(
                 storeId,
                 title: body.title.trim(),
                 description: body.description?.trim() || null,
+                categoryId: body.categoryId ?? null,
               },
             });
             for (const v of variants) {
@@ -347,6 +358,80 @@ export async function catalogRoutes(
             },
           });
           return { code: 200, body: { status, version: expectedVersion + 1 } };
+        },
+      );
+      return send(reply, result);
+    },
+  );
+
+  // Catégorie du produit (taxonomie plateforme) ; null pour la retirer.
+  app.post(
+    "/v1/stores/:storeId/products/:productId/category",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["storeId", "productId"],
+          properties: {
+            storeId: { type: "string", format: "uuid" },
+            productId: { type: "string", format: "uuid" },
+          },
+        },
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["categoryId"],
+          properties: {
+            categoryId: {
+              anyOf: [{ type: "string", format: "uuid" }, { type: "null" }],
+            },
+          },
+        },
+        response: refusals,
+      },
+    },
+    async (request, reply) => {
+      if (!(await requireSameOrigin(request, reply, webOrigin))) return reply;
+      const principal = await requirePrincipal(db, request, reply);
+      if (!principal) return reply;
+      const { storeId, productId } = request.params as {
+        storeId: string;
+        productId: string;
+      };
+      const { categoryId } = request.body as { categoryId: string | null };
+      const result = await inStore(
+        db,
+        principal,
+        storeId,
+        "catalog:write",
+        async (tx, ctx) => {
+          if (
+            categoryId &&
+            !(await tx.category.count({
+              where: { id: categoryId, active: true },
+            }))
+          )
+            return { code: 400 as const, error: "invalid_category" };
+          const { count } = await tx.product.updateMany({
+            where: { id: productId, storeId },
+            data: { categoryId, updatedAt: new Date() },
+          });
+          if (!count) return { code: 404 as const, error: "not_found" };
+          await tx.auditLog.create({
+            data: {
+              tenantId: ctx.tenantId,
+              actorId: ctx.userId,
+              action: "catalog.product.category",
+              resourceId: productId,
+              requestId: request.id,
+              detail: { categoryId },
+            },
+          });
+          const updated = (await tx.product.findUniqueOrThrow({
+            where: { id: productId },
+            include: productInclude,
+          })) as ProductRow;
+          return { code: 200 as const, body: toProduct(updated) };
         },
       );
       return send(reply, result);

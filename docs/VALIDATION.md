@@ -505,3 +505,123 @@ Synthèse et décision dans [PILOT_READINESS.md](PILOT_READINESS.md) : **NO-GO**
 
 - Les E2E ne tournent pas encore en CI. Pas de test de charge, pas de recette sur appareil réel, pas de test d'intrusion.
 - CSP, HSTS et trustProxy sont à configurer avec l'hébergement.
+
+---
+
+# Sprint 12 — Préparation du passage au réel : CinetPay, sécurité, déploiement — 30 octobre 2026
+
+Décisions utilisateur : prestataire **CinetPay** ; hébergement **non décidé** (images portables).
+
+## Livré
+
+- **Adaptateur CinetPay** :
+  - initialisation, retour du payeur (simple redirection, sans valeur de preuve), notification en formulaire ou JSON ;
+  - statut relu par appel serveur à serveur, empreinte de dédoublonnage ;
+  - activation par l'environnement (SANDBOX par défaut) ;
+  - contrat `PaymentProvider` étendu : vérification asynchrone, URL de notification et de retour, type de moyen.
+- **CSP à nonce** (`apps/web/proxy.ts`, convention Next 16) : scripts limités au nonce, `frame-ancestors 'none'`, `object-src 'none'`, `form-action 'self'`. HSTS et `upgrade-insecure-requests` seulement en HTTPS. Rendu dynamique garanti par la mise en page.
+- **API** : `TRUST_PROXY_HOPS` (IP réelle derrière les proxies, sinon `X-Forwarded-For` est ignoré).
+- **Déploiement** : `deploy/Dockerfile`, `deploy/compose.staging.yaml`, Caddyfile, modèle d'environnement, `.dockerignore`, `docs/DEPLOYMENT.md`.
+- **CI** : E2E Playwright après le build ; job `images` qui construit les 4 cibles Docker.
+
+## Commandes réellement exécutées
+
+- Tests unitaires CinetPay sur API simulée (6) : initiation, refus, devise non prise en charge, statut relu, doublon de même empreinte, refus et attente, autre site, notification mal formée, panne (exception, donc nouvel essai), enregistrement SANDBOX/LIVE.
+- `cinetpay.db.test.ts` (3, base réelle, réseau CinetPay simulé) :
+  - redirection vers la page hébergée, mode SANDBOX ;
+  - retour du payeur sans effet ;
+  - notification d'un autre site refusée ;
+  - corps falsifié (« ACCEPTED », montant 1) ignoré, statut relu « en attente » ;
+  - statut accepté appliqué une fois, puis doublon.
+- Un premier scénario de test était faux : CinetPay simulé se contredisait lui-même sur le montant, et la quarantaine était le bon comportement. Il a été corrigé.
+- `guest-cart.db.test.ts` : rate limit par IP réelle derrière un proxy déclaré.
+- E2E : **44/44** (nouveaux : en-tête CSP avec nonce, aucune violation CSP en console, y compris sur la page catalogue qui exécute du JavaScript).
+- `docker compose config` : Compose de staging valide (6 services). Workflow CI analysé (YAML valide, 2 jobs).
+
+## Non vérifié
+
+- Aucun appel réel à CinetPay (pas d'identifiants ; documentation non joignable depuis le poste).
+- Images Docker non construites localement (démon absent) : la CI s'en charge au prochain push. La CI distante n'a pas été exécutée (aucun push).
+
+## Sprint 12 (suite) — Catégories façon place de marché
+
+- **Migration `202611090001_categories`** :
+  - taxonomie plateforme sur deux niveaux, garantis par un déclencheur ;
+  - 6 rubriques et 15 sous-catégories adaptées à Douala, modifiables ;
+  - RLS : lecture publique, écriture par l'ADMIN ;
+  - `Product.categoryId` modifiable par le vendeur (droit `catalog:write`).
+- **API** :
+  - `GET /v1/catalog/categories` : arbre et nombre de produits publiés, rubrique comprenant ses sous-catégories ;
+  - filtre `category` dans la recherche (sous-catégories comprises ; catégorie inconnue ou inactive : aucun résultat) ;
+  - fil d'Ariane sur la fiche publique ;
+  - `POST /v1/stores/:id/products/:productId/category` (audité), catégorie à la création ;
+  - `GET/POST /v1/admin/categories` (permission `taxonomy:manage`, ADMIN).
+- **Web** :
+  - colonne des rubriques sur grand écran et bandeau défilant sur mobile (accueil, résultats) ;
+  - fil d'Ariane ; pagination qui conserve le filtre ;
+  - choix de catégorie dans le catalogue vendeur ;
+  - page admin « Catégories ».
+- **Tests** :
+  - 5 tests sur base réelle : droits, comptage, filtre parent/enfant, fil d'Ariane, deux niveaux, identifiant unique, désactivation ;
+  - E2E **50/50** : navigation rubrique → sous-catégorie → fiche avec fil d'Ariane, filtre exclusif, accessibilité et largeur mobile de la page filtrée ;
+  - suites complètes : 65 tests unitaires, 152 sur base réelle (base 19, API 131, worker 2).
+
+## Sprint 12 (suite) — Cartes cliquables et fiche produit façon place de marché
+
+Demande utilisateur : toute la carte produit doit ouvrir la fiche (comme sur Alibaba), et la fiche doit s'inspirer de l'exemple fourni. La page d'exemple est rendue en JavaScript et l'outil n'en a lu aucun contenu : la structure suit la disposition usuelle des fiches Alibaba, sans en reprendre marque ni contenu.
+
+- **Cartes** : le lien du titre recouvre toute la carte (un seul lien par carte pour les lecteurs d'écran), avec survol et focus visibles.
+- **Fiche** :
+  - galerie avec miniatures, sans JavaScript (`?photo=n`) ;
+  - bloc d'achat : prix « à partir de » ou fourchette, options avec prix et disponibilité, quantité, **« Acheter maintenant »** (ajout puis checkout) et « Ajouter au panier » ;
+  - encadré vendeur : boutique vérifiée, ouverte depuis, frais de livraison, retrait ;
+  - garanties : paiement confirmé par le prestataire, code de remise, réclamation 7 jours ;
+  - tableau des caractéristiques, description, produits similaires de la même catégorie.
+- **API** : la fiche publique expose les options de remise du vendeur et son année d'ouverture.
+- **Tests** :
+  - E2E **56/56** : carte cliquée hors du titre (vrai clic de souris aux coordonnées du prix) ; encadré vendeur, garanties et caractéristiques ; « Acheter maintenant » mène au checkout ; largeur mobile ;
+  - suites complètes vertes.
+- **Pleine largeur** (remarque utilisateur : Alibaba occupe toute la page). Les pages boutique sont fluides, plafonnées à 1920 px, avec une marge latérale de 0,75 à 2,5 rem. En-tête blanc bord à bord et recherche élargie. Grille de 2 colonnes sur téléphone, dense sur grand écran. Les espaces vendeur et administration restent centrés (formulaires). E2E 56/56 relancé, contrôles de largeur mobile compris.
+
+## Sprint 12 (suite) — Accueil et en-tête façon place de marché (captures fournies)
+
+Design repris des captures d'Alibaba fournies par l'utilisateur, **avec l'identité DuoShopAfrica** : ni logo, ni nom, ni intitulés propres à Alibaba.
+
+- **En-tête** : logo ; recherche en pilule (sauf accueil) ; « Adresse de livraison : Douala · CM » ; langue et devise ; icônes panier, notifications, commandes et compte avec pastilles. Seconde ligne : « Toutes les catégories », 3 rubriques, Mes commandes, Vendre sur DuoShop.
+- **Accueil** :
+  - fond dégradé ; onglets Produits / Catégories ; grande recherche arrondie avec bouton en dégradé ;
+  - barre « Bienvenue » avec raccourcis ;
+  - rangée : panneau des catégories (pictogrammes, chevrons, défilement) ; cartes « Nouveautés » et « Explorez : rubrique » (prix en pastille) ; **carrousel « À la une » en haut à droite, sous la recherche** (3 diapositives) ;
+  - grille « Sélectionnés pour vous ».
+- **Carrousel** : défile au doigt et points-liens sans JavaScript. Avec JavaScript : avance toutes les 6 s, pause au survol ou au focus, immobile si l'utilisateur préfère réduire les animations.
+- **Cartes produit** : titre sur deux lignes, fourchette de prix, « Min. 1 pièce · N vendus », « ✓ Vérifié · N ans · CM · boutique ».
+  - **Données réelles** : ventes = agrégat des mouvements de stock SALE (`product_units_sold`, migration `202611100001_public_sales`, 0 pour un produit non public) ; ancienneté = année d'ouverture de la boutique ; fourchette = prix min/max des variantes actives.
+- **Barre de raccourcis flottante** (panier, notifications, haut de page) à partir de 768 px.
+- **Accessibilité** : axe signalait le lien de langue (texte visible absent du nom accessible, WCAG 2.5.3), corrigé. Correspondance exacte du menu « Catégories » dans le test.
+- **Tests** :
+  - E2E **58/58** (nouveau test : carrousel présent sous la recherche, 3 diapositives, flèche « suivante » qui avance) ;
+  - compteur de ventes vérifié en base (2 unités après paiement) ;
+  - suites complètes vertes.
+- **Sélecteur langue et devise** (capture fournie) : fenêtre déroulante avec flèche sous « 🌐 Français · XAF » (élément `<details>`, sans JavaScript), titre, texte, listes Langue et Devise, bouton « Sauvegarder » pleine largeur. La route `/switch-locale` renvoie vers la même page dans la langue choisie (chemins internes seulement, aucune redirection ouverte).
+  - Devise : **XAF uniquement**, seule devise réellement gérée. Pas d'euro affiché sans conversion réelle.
+  - Bouton orange de marque (#C2410C, 5,2:1) au lieu de l'orange vif (#FF6A00), illisible avec du texte blanc.
+  - E2E **60/60** (nouveau test : ouverture, devise XAF, passage en anglais sur la même fiche, largeur mobile).
+
+## Sprint 12 (suite) — Pleine largeur partout, menus encadrés, catalogue de démonstration illustré
+
+- **Pleine largeur** : les 16 pages compte, vendeur, administration et connexion démo utilisaient encore la colonne centrale. `AccountShell` reprend l'en-tête blanc pleine largeur de la boutique.
+- **Menus encadrés** : `SideNav` est un panneau blanc bordé avec pictogrammes ; la rubrique ouverte est en rouge (`aria-current`). Colonne de gauche fixe à partir de 900 px, bandeau défilant sur mobile. Menus : administration (7 rubriques) et gestion de boutique (5 rubriques).
+- **Catalogue de démonstration** : 5 boutiques DEMO et 46 produits (15 sous-catégories, variantes, prix de test en XAF, stocks dont ruptures et stocks faibles).
+  - 45 photos **libres** de Wikimedia Commons (domaine public, CC0, CC BY, CC BY-SA ; aucune NC ou ND), avec auteur, licence et source enregistrés ; une recherche sans résultat acceptable (njansang) reste sans photo.
+  - Images ré-encodées par le même traitement que les envois vendeurs (WebP, métadonnées retirées), servies depuis `apps/web/public/demo-media` (exclu de Git).
+  - Page **« Crédits photos »** (`/fr/credits`, lien en pied de page), obligatoire pour CC BY et CC BY-SA.
+  - Script de développement `pnpm --filter @duoshop/worker demo:catalog` : refusé en production, idempotent, refuse de supprimer un catalogue qui a des commandes.
+- **Incidents** :
+  - le TLS de Python échouait derrière le VPN (certificat « expiré ») ; les téléchargements passent par `curl` (magasin Windows), vérification TLS conservée ;
+  - limite de débit de Wikimedia : reprises espacées ;
+  - l'API Openverse ne répondait pas ;
+  - la première requête envoyée à Openverse contenait par erreur l'adresse e-mail de l'utilisateur dans l'en-tête User-Agent ; retiré de toutes les requêtes suivantes.
+- **Tests** :
+  - E2E **62/62**, l'API de test servant les photos (accessibilité et largeur vérifiées avec images) ;
+  - nouveau test : page admin pleine largeur, menu latéral encadré, rubrique active, sans débordement mobile ;
+  - 65 tests unitaires et 152 sur base réelle, verts avec le catalogue de démonstration en base.

@@ -9,3 +9,5 @@ coverage/
 packages/database/generated/
 *.tsbuildinfo
 .local/
+deploy/*.env
+apps/web/public/demo-media/

@@ -306,11 +306,15 @@ model Product {
   publishedAt DateTime? @db.Timestamptz(3)
   // Colonne générée (migration) : titre + description sans accents, pour la recherche plein texte.
   search Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, search_unaccent(((COALESCE(title, ''::text) || ' '::text) || COALESCE(description, ''::text))))"))
+  // Catégorie de la taxonomie plateforme (facultative), choisie par le vendeur.
+  categoryId String? @db.Uuid
   store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   variants ProductVariant[]
   media ProductMedia[]
   @@unique([tenantId, id])
   @@index([storeId, status])
+  @@index([categoryId, status])
   @@index([search], type: Gin)
 }
 model ProductVariant {
@@ -778,4 +782,20 @@ model Refund {
   claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
   @@index([status, createdAt])
   @@index([tenantId])
+}
+
+// ---------- Catégories (taxonomie plateforme, deux niveaux) ----------
+model Category {
+  id String @id @default(uuid()) @db.Uuid
+  slug String @unique
+  parentId String? @db.Uuid
+  nameFr String
+  nameEn String
+  position Int @default(100)
+  active Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  parent Category? @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+  @@index([parentId, position])
 }

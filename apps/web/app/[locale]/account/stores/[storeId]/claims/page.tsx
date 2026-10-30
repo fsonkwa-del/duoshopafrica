@@ -4,6 +4,7 @@ import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiUrl, sessionToken } from "../../../../../../lib/session";
+import { SellerNav } from "../../../../admin/admin-nav";
 import { ClaimCard } from "../../../../claim-card";
 import { AccountShell, SignIn } from "../../../account-shell";
 import { respondClaimAction } from "./actions";
@@ -42,6 +43,7 @@ export default async function StoreClaims({
   const { claims, canRespond } = result.data;
   return (
     <AccountShell locale={locale} path={path} signedIn>
+      <SellerNav locale={locale} storeId={storeId} current={path} />
       {back}
       <h1>{c.sellerTitle}</h1>
       {!canRespond && <Notice>{c.sellerReadOnly}</Notice>}

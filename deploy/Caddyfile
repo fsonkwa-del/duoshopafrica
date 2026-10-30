@@ -1,0 +1,6 @@
+# TLS automatique (Let's Encrypt) ; seul le site web est exposé, l'API reste interne
+# (le site réécrit /v1/* vers l'API, webhooks CinetPay compris).
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}

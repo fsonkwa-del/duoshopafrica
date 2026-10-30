@@ -36,7 +36,7 @@ export default async function Finance({
   if (!result.ok)
     return (
       <AccountShell locale={locale} path={path} signedIn>
-        <AdminNav locale={locale} />
+        <AdminNav locale={locale} current={path} />
         <h1>{fi.title}</h1>
         <Notice>
           {result.status === 404
@@ -52,7 +52,7 @@ export default async function Finance({
     a in fi.accounts ? fi.accounts[a as keyof typeof fi.accounts] : a;
   return (
     <AccountShell locale={locale} path={path} signedIn>
-      <AdminNav locale={locale} />
+      <AdminNav locale={locale} current={path} />
       <h1>{fi.title}</h1>
       <p>{fi.intro}</p>
       <form method="get" className="filters">

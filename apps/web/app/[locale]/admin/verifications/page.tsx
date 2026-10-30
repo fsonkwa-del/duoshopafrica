@@ -57,7 +57,7 @@ export default async function Verifications({
           : [];
   return (
     <AccountShell locale={locale} path={`${path}?status=${status}`} signedIn>
-      <AdminNav locale={locale} />
+      <AdminNav locale={locale} current={path} />
       <h1>{a.title}</h1>
       <form className="filters" method="get">
         <label>

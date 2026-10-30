@@ -1,3 +1,4 @@
+export { CinetPayProvider, type CinetPaySettings } from "./cinetpay";
 export {
   MOCK_SIGNATURE_HEADER,
   MOCK_TOLERANCE_SECONDS,

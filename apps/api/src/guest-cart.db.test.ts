@@ -243,4 +243,22 @@ describe("abuse protection", () => {
     assert.ok(statuses.slice(0, 60).every((s) => s !== 429));
     assert.equal(statuses[60], 429);
   });
+
+  test("behind a declared reverse proxy, limits apply per real client IP", async () => {
+    const proxied = await createApp({ db, webOrigin, trustProxy: 1 });
+    const statuses: number[] = [];
+    for (let i = 0; i < 61; i++)
+      statuses.push(
+        (
+          await proxied.inject({
+            method: "POST",
+            url: "/v1/cart/items",
+            headers: { origin: webOrigin, "x-forwarded-for": `10.0.0.${i}` },
+            payload: { variantId: randomUUID(), quantity: 1 },
+          })
+        ).statusCode,
+      );
+    await proxied.close();
+    assert.ok(statuses.every((s) => s !== 429));
+  });
 });

@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { formatMoney, isLocale, messages } from "@duoshop/i18n";
-import { getStore, listProducts } from "@duoshop/sdk";
+import { getCategories, getStore, listProducts } from "@duoshop/sdk";
 import type { ProductStatusDTO } from "@duoshop/types";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiUrl, sessionToken } from "../../../../../../lib/session";
+import { SellerNav } from "../../../../admin/admin-nav";
+import { CategorySelect } from "../../../../category-nav";
 import { AccountShell, SignIn } from "../../../account-shell";
 import {
+  changeCategoryAction,
   changePriceAction,
   changeStatusAction,
   createProductAction,
@@ -35,12 +38,13 @@ export default async function Catalog({
   const c = t.catalog;
   const path = `/account/stores/${storeId}/catalog`;
   const token = await sessionToken();
-  const [store, catalog] = token
+  const [store, catalog, categories] = token
     ? await Promise.all([
         getStore(apiUrl, token, storeId),
         listProducts(apiUrl, token, storeId),
+        getCategories(apiUrl, locale).catch(() => []),
       ])
-    : [null, null];
+    : [null, null, []];
   if (!store || !catalog || (!store.ok && store.status === 401))
     return <SignIn locale={locale} path={path} />;
   const back = (
@@ -82,6 +86,7 @@ export default async function Catalog({
           : c.unpublish;
   return (
     <AccountShell locale={locale} path={path} signedIn>
+      <SellerNav locale={locale} storeId={storeId} current={path} />
       {back}
       <h1>
         {c.title} — {store.data.name}
@@ -91,6 +96,7 @@ export default async function Catalog({
       )}
       {query.ok === "created" && <Notice>{c.created}</Notice>}
       {query.ok === "saved" && <Notice>{c.saved}</Notice>}
+      {query.ok === "category" && <Notice>{t.categories.changed}</Notice>}
       {query.ok === "replayed" && <Notice>{c.replayed}</Notice>}
       {error && <Notice>{error}</Notice>}
 
@@ -105,6 +111,18 @@ export default async function Catalog({
                 <span className="badge">{c.statuses[product.status]}</span>
               </h2>
               {product.description && <p>{product.description}</p>}
+              <form action={changeCategoryAction} className="filters">
+                {hidden}
+                <input type="hidden" name="productId" value={product.id} />
+                <CategorySelect
+                  locale={locale}
+                  categories={categories}
+                  value={product.categoryId}
+                />
+                <button type="submit" className="link-button">
+                  {t.categories.change}
+                </button>
+              </form>
               <div className="actions">
                 {nextStatuses[product.status]
                   .filter((s) => s !== "PUBLISHED" || canPublish)
@@ -250,6 +268,7 @@ export default async function Catalog({
             {c.description}
             <textarea name="description" maxLength={2000} rows={3} />
           </label>
+          <CategorySelect locale={locale} categories={categories} />
           <p className="hint">{c.variantsHelp}</p>
           {[0, 1, 2].map((i) => (
             <fieldset key={i} className="variant-row">

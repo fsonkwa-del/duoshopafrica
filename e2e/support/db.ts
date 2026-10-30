@@ -69,8 +69,9 @@ export async function seed(): Promise<Seed> {
            RETURNING "id", "tenantId", "slug"),
      l AS (INSERT INTO "InventoryLocation" ("id", "tenantId", "storeId", "name")
            SELECT gen_random_uuid(), s."tenantId", s."id", 'Principal' FROM s RETURNING "id", "tenantId"),
-     p AS (INSERT INTO "Product" ("id", "tenantId", "storeId", "title", "description", "status", "publishedAt", "updatedAt")
-           SELECT gen_random_uuid(), s."tenantId", s."id", $3, 'Tissu tissé main, 2 mètres.', 'PUBLISHED', now(), now() FROM s
+     p AS (INSERT INTO "Product" ("id", "tenantId", "storeId", "title", "description", "status", "publishedAt", "updatedAt", "categoryId")
+           SELECT gen_random_uuid(), s."tenantId", s."id", $3, 'Tissu tissé main, 2 mètres.', 'PUBLISHED', now(), now(),
+                  (SELECT "id" FROM "Category" WHERE "slug" = 'tissus-pagnes') FROM s
            RETURNING "id", "tenantId"),
      v AS (INSERT INTO "ProductVariant" ("id", "tenantId", "productId", "sku", "label", "priceMinor", "currency")
            SELECT gen_random_uuid(), p."tenantId", p."id", $4, '2 mètres', 5000, 'XAF' FROM p RETURNING "id", "tenantId")

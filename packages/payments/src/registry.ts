@@ -1,3 +1,4 @@
+import { CinetPayProvider } from "./cinetpay";
 import { MockPaymentProvider } from "./mock";
 import type { PaymentProvider } from "./provider";
 
@@ -17,6 +18,21 @@ export function providersFromEnv(
     if (!secret) throw new Error("PAYMENTS_MOCK_SECRET is required");
     providers.set("mock", new MockPaymentProvider(secret));
   }
-  // Prestataires réels : ajoutés ici avec leur adaptateur, une fois contrat et sandbox obtenus.
+  // CinetPay : actif seulement si les identifiants du site marchand sont fournis. SANDBOX par
+  // défaut ; LIVE uniquement sur déclaration explicite (après validation sandbox et contrat).
+  if (env.CINETPAY_API_KEY && env.CINETPAY_SITE_ID) {
+    const mode = env.CINETPAY_MODE ?? "SANDBOX";
+    if (mode !== "SANDBOX" && mode !== "LIVE")
+      throw new Error("CINETPAY_MODE must be SANDBOX or LIVE");
+    providers.set(
+      "cinetpay",
+      new CinetPayProvider({
+        apiKey: env.CINETPAY_API_KEY,
+        siteId: env.CINETPAY_SITE_ID,
+        mode,
+        ...(env.CINETPAY_API_BASE ? { apiBase: env.CINETPAY_API_BASE } : {}),
+      }),
+    );
+  }
   return providers;
 }

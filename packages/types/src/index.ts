@@ -82,6 +82,7 @@ export interface VariantDTO {
 }
 export interface ProductDTO {
   id: string;
+  categoryId: string | null;
   title: string;
   description: string | null;
   status: ProductStatusDTO;
@@ -111,8 +112,12 @@ export interface CatalogItemDTO {
   title: string;
   store: PublicStoreDTO;
   priceFrom: MoneyDTO;
+  priceTo: MoneyDTO;
   availability: AvailabilityDTO;
   image: MediaDTO | null;
+  // Unités vendues (paiements confirmés) et année d'ouverture de la boutique.
+  sold: number;
+  storeSince: number;
 }
 export interface CatalogPageDTO {
   items: CatalogItemDTO[];
@@ -127,9 +132,21 @@ export interface PublicVariantDTO {
 }
 export interface PublicProductDTO {
   id: string;
+  // Fil d'Ariane : catégorie et, s'il y a lieu, sa catégorie parente.
+  category: {
+    slug: string;
+    name: string;
+    parent: { slug: string; name: string } | null;
+  } | null;
   title: string;
   description: string | null;
   store: PublicStoreDTO;
+  // Encadré vendeur de la fiche : options de remise et ancienneté (année d'ouverture).
+  seller: {
+    since: number;
+    homeDelivery: { fee: MoneyDTO } | null;
+    pickup: { instructions: string | null } | null;
+  };
   variants: PublicVariantDTO[];
   media: MediaDTO[];
 }
@@ -441,4 +458,23 @@ export interface ClaimDTO {
     amount: MoneyDTO;
     status: "PENDING_PROVIDER" | "SUCCEEDED" | "FAILED";
   } | null;
+}
+
+// ---------- Catégories ----------
+export interface CategoryDTO {
+  id: string;
+  slug: string;
+  name: string;
+  // Produits publiés de la catégorie et de ses sous-catégories.
+  productCount: number;
+  children: CategoryDTO[];
+}
+export interface AdminCategoryDTO {
+  id: string;
+  slug: string;
+  parentId: string | null;
+  nameFr: string;
+  nameEn: string;
+  position: number;
+  active: boolean;
 }

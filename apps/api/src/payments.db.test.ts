@@ -526,6 +526,13 @@ describe("paying an order with a configured method", () => {
       sale.map((m) => m.delta),
       [-2],
     );
+    // Compteur public « N vendus » de la vitrine : agrégat des ventes payées.
+    const variant = await db.productVariant.findUniqueOrThrow({
+      where: { id: f.variant },
+    });
+    const [unitsSold] = await db.$queryRaw<{ n: bigint }[]>`
+      SELECT product_units_sold(${variant.productId}::uuid) AS n`;
+    assert.equal(unitsSold?.n, 2n);
     assert.equal(
       await db.stockReservation.count({
         where: {
