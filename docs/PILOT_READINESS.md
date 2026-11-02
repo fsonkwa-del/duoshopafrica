@@ -48,9 +48,9 @@ Date : 29 octobre 2026. Périmètre : pilote Douala, XAF, FR/EN, places de march
 | Journal comptable immuable pour le runtime                                                              | ✅                                             |
 | Rate limit : connexion, catalogue, webhooks, remise, **écritures acheteur (nouveau)**                   | ✅                                             |
 | Logs sans query string, sans secret ni téléphone                                                        | ✅                                             |
-| **CSP absente**                                                                                         | ❌ à ajouter (nonces Next.js ou reverse proxy) |
-| **HSTS**                                                                                                | ❌ à configurer au reverse proxy (TLS)         |
-| **trustProxy désactivé** : derrière un proxy, toutes les requêtes partageront une IP pour le rate limit | ❌ à configurer au déploiement                 |
+| CSP avec nonce par requête (`proxy.ts`, Sprint 12)                                                      | ✅                                             |
+| HSTS envoyé en HTTPS uniquement (Sprint 12)                                                             | ✅ à vérifier en staging derrière Caddy        |
+| IP réelle derrière proxy : `TRUST_PROXY_HOPS` (Sprint 12)                                               | ✅ à vérifier en staging (logs API)            |
 | Rate limit en mémoire (une instance)                                                                    | ⚠️ Redis avant plusieurs instances             |
 | Antivirus des images envoyées                                                                           | ⚠️ non branché (ADR 0006)                      |
 | Test d'intrusion externe                                                                                | ❌ non réalisé                                 |
@@ -64,4 +64,4 @@ Date : 29 octobre 2026. Périmètre : pilote Douala, XAF, FR/EN, places de march
 
 ## Hors périmètre de cette qualification
 
-Tests de charge et de performance, recette manuelle (lecteur d'écran, appareils réels Android d'entrée de gamme sur réseau 3G), restauration à un instant donné (PITR, dépend de l'hébergeur), tests de la CI distante (le workflow n'exécute pas encore les E2E).
+Tests de charge et de performance, recette manuelle (lecteur d'écran, appareils réels Android d'entrée de gamme sur réseau 3G), restauration à un instant donné (PITR, dépend de l'hébergeur), tests sur appareils réels. La CI distante (GitHub Actions, PostgreSQL 17, Linux) exécute toute la chaîne, E2E compris, depuis le 2 novembre 2026.

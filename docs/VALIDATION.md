@@ -625,3 +625,15 @@ Design repris des captures d'Alibaba fournies par l'utilisateur, **avec l'identi
   - E2E **62/62**, l'API de test servant les photos (accessibilité et largeur vérifiées avec images) ;
   - nouveau test : page admin pleine largeur, menu latéral encadré, rubrique active, sans débordement mobile ;
   - 65 tests unitaires et 152 sur base réelle, verts avec le catalogue de démonstration en base.
+
+## Sprint 12 (fin) — Première CI distante complète
+
+Premier passage sur GitHub Actions (Linux, Node 24, PostgreSQL 17.6, base neuve). Trois défauts réels, invisibles sur le poste de développement (Windows, Node 26, PostgreSQL 18), ont été trouvés et corrigés :
+
+- **Paiements impossibles sous PostgreSQL 17** : le contrôle différé d'équilibre du journal comptable s'exécutait, à la validation, avec le rôle runtime `duoshop_app`. La RLS lui cache les lignes du journal : journal vu vide, chaque paiement accepté était refusé (`unbalanced ledger journal`). PostgreSQL 18 exécute ces déclencheurs avec le rôle actif lors de l'insertion, d'où l'absence d'erreur en local. Correctif : migration `202611110001_journal_check_definer` (`assert_journal_balanced` en SECURITY DEFINER). La pré-production prévue (Compose, PostgreSQL 17) aurait été touchée.
+- **Fusion du panier visiteur concurrente** : deux requêtes simultanées après la connexion lisaient le même panier visiteur ; la seconde échouait en supprimant un panier déjà fusionné. Correctif : verrou `FOR UPDATE` sur le panier visiteur (`apps/api/src/cart.ts`).
+- **Débordement mobile avec polices larges** : la recherche de l'en-tête ne pouvait pas rétrécir sous la largeur naturelle du champ et du bouton (423 px sur un écran de 412 px, toutes les pages hors accueil). Correctif : `min-width: 0` sur `.header-search`. Vérifié à 360 et 412 px avec Verdana et DejaVu Sans.
+- **Outillage** :
+  - la préparation E2E crée `.local/` (absent sur machine neuve) ;
+  - en CI, les échecs `test:db` (avec les erreurs du serveur PostgreSQL) et Playwright (rapporteur `github`) sont publiés en annotations, lisibles sans connexion.
+- Résultat : CI GitHub Actions **entièrement verte** (run 41483778344) : migrations, données initiales, 152 tests sur base réelle, lint, typecheck, tests unitaires, build, E2E Playwright mobile et bureau, images Docker.
