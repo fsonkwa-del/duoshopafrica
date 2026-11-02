@@ -155,6 +155,10 @@ export async function mergeGuestCart(
 ): Promise<void> {
   const merge = () =>
     asRuntime(db, { userId, guestCart: guestTokenHash }, async (tx) => {
+      // Verrou sur le panier visiteur : une fusion simultanée attend, puis ne le trouve plus.
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Cart" WHERE "guestTokenHash" = ${guestTokenHash} FOR UPDATE`;
+      if (!locked.length) return;
       const guest = await tx.cart.findUnique({
         where: { guestTokenHash },
         include: { items: true },
