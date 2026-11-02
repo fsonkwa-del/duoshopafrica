@@ -10,7 +10,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: [["list"]],
+  // En CI, les échecs deviennent aussi des annotations GitHub (lisibles sans connexion).
+  reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
   globalSetup: "./e2e/support/global-setup.ts",
   globalTeardown: "./e2e/support/global-teardown.ts",
   use: {
