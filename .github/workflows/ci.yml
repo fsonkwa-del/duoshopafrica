@@ -30,7 +30,16 @@ jobs:
       - run: pnpm db:validate
       - run: pnpm db:deploy
       - run: pnpm db:seed
-      - run: pnpm test:db
+      # En cas d'échec, les tests en erreur deviennent des annotations (lisibles sans connexion).
+      - shell: bash
+        run: |
+          set -o pipefail
+          if ! pnpm test:db 2>&1 | tee test-db.log; then
+            # GitHub limite à 10 annotations par étape : un seul message multi-lignes.
+            summary=$(grep -nE -A4 "✖|not ok|Error|error:" test-db.log | head -80 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=test:db::${summary}"
+            exit 1
+          fi
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
