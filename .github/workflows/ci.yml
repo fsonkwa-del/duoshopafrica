@@ -39,7 +39,8 @@ jobs:
           cat test-db.log
           if [ "$status" -ne 0 ]; then
             # GitHub limite à 10 annotations par étape : un seul message multi-lignes.
-            { grep -nE -A4 "✖|not ok|Error|ERR_|error" test-db.log | head -60; echo "--- fin du journal ---"; tail -n 25 test-db.log; } > test-db.summary
+            # Annotations tronquées à 4 Ko : seulement le détail des premiers échecs.
+            sed -n '/failing tests:/,$p' test-db.log | grep -vE "^\s+at |node:internal|node_modules" | head -c 3500 > test-db.summary
             echo "::error title=test:db exit ${status}::$(sed 's/%/%25/g' test-db.summary | awk '{printf "%s%%0A", $0}')"
             exit 1
           fi
