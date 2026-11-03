@@ -1,6 +1,6 @@
 # Déploiement de pré-production (staging) — mode TEST
 
-État au 03/11/2026 : **pré-production en ligne** sur Hetzner Cloud (CX23, Falkenstein, 5,49 € + 0,50 € d'IPv4 par mois) : https://duoshop.2-31-200-122.sslip.io (boutique) et https://auth.2-31-200-122.sslip.io (Zitadel). Paiement, photos et e-mails pas encore configurés (voir ci-dessous).
+État au 03/11/2026 : **pré-production en ligne** sur Hetzner Cloud (CX23, Falkenstein, 5,49 € + 0,50 € d'IPv4 par mois) : https://duoshop.2-31-200-122.sslip.io (boutique) et https://auth.2-31-200-122.sslip.io (Zitadel). Photos sur https://media.2-31-200-122.sslip.io (SeaweedFS). Paiement et e-mails pas encore configurés (voir ci-dessous).
 
 ## Contenu
 
@@ -10,6 +10,7 @@
   - Zitadel v4.19.4 et sa page de connexion Login V2 (d'après l'exemple officiel `deploy/compose` de Zitadel) ;
   - Caddy : TLS Let's Encrypt automatique pour `SITE_DOMAIN` et `AUTH_DOMAIN`, seul service exposé. L'API reste interne ; le site lui relaie `/v1/*`, webhooks compris.
 - `deploy/staging.env.example` et `deploy/zitadel.env.example` : à copier en `deploy/staging.env` et `deploy/zitadel.env` (ignorés par Git).
+- `deploy/s3.json.example` : identités S3 de SeaweedFS (clés de l'application, lecture anonyme du seul bucket public), à copier en `deploy/s3.json` (ignoré par Git et par l'image Docker).
 - `deploy/postgres-init/10-zitadel.sh` : crée le rôle et la base `zitadel` au premier démarrage (volume vide).
 - Données de référence (XAF, CM, fr/en) : migration `202611120001_reference_data`. Le seed de démonstration reste interdit en production.
 
@@ -21,7 +22,7 @@
 | Création de compte et connexion (Zitadel)         | ✅ ; e-mails de vérification seulement si SMTP configuré                                                 |
 | Espace vendeur, administration (MFA)              | ✅                                                                                                       |
 | Paiement                                          | ❌ tant que les identifiants **sandbox CinetPay** manquent (le paiement simulé est refusé en production) |
-| Photos produit                                    | ❌ tant qu'un stockage S3 n'est pas configuré (envoi refusé, 503)                                        |
+| Photos produit                                    | ✅ stockage S3 SeaweedFS sur le serveur (`MEDIA_DOMAIN`)                                                 |
 
 ## Mise en ligne sur Hetzner, pas à pas
 
