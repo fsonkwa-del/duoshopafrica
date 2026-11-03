@@ -15,13 +15,13 @@
 
 ## Ce qui fonctionnera, et ce qui manque encore
 
-| Fonction | État en ligne |
-|---|---|
-| Catalogue, recherche, catégories, panier visiteur | ✅ |
-| Création de compte et connexion (Zitadel) | ✅ ; e-mails de vérification seulement si SMTP configuré |
-| Espace vendeur, administration (MFA) | ✅ |
-| Paiement | ❌ tant que les identifiants **sandbox CinetPay** manquent (le paiement simulé est refusé en production) |
-| Photos produit | ❌ tant qu'un stockage S3 n'est pas configuré (envoi refusé, 503) |
+| Fonction                                          | État en ligne                                                                                            |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Catalogue, recherche, catégories, panier visiteur | ✅                                                                                                       |
+| Création de compte et connexion (Zitadel)         | ✅ ; e-mails de vérification seulement si SMTP configuré                                                 |
+| Espace vendeur, administration (MFA)              | ✅                                                                                                       |
+| Paiement                                          | ❌ tant que les identifiants **sandbox CinetPay** manquent (le paiement simulé est refusé en production) |
+| Photos produit                                    | ❌ tant qu'un stockage S3 n'est pas configuré (envoi refusé, 503)                                        |
 
 ## Mise en ligne sur Hetzner, pas à pas
 

@@ -37,23 +37,23 @@ Date : 29 octobre 2026. Périmètre : pilote Douala, XAF, FR/EN, places de march
 
 ## Revue de sécurité
 
-| Point                                                                                                   | État                                           |
-| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Sessions opaques `__Host-`, httpOnly, Secure, SameSite=Lax, 30 min d'inactivité / 12 h                  | ✅                                             |
-| Origin vérifiée sur toutes les mutations                                                                | ✅                                             |
-| RLS sur toutes les tables métier, runtime non propriétaire, fonctions SECURITY DEFINER bornées          | ✅                                             |
-| Personnel : rôle lu en base + MFA ; séparation ADMIN / SUPPORT / FINANCE                                | ✅                                             |
-| Webhooks : HMAC sur corps brut, fenêtre de 5 min, idempotence, quarantaine                              | ✅                                             |
-| Fonctions de développement (MOCK, connexion démo) refusées en production                                | ✅ testé E2E                                   |
-| Journal comptable immuable pour le runtime                                                              | ✅                                             |
-| Rate limit : connexion, catalogue, webhooks, remise, **écritures acheteur (nouveau)**                   | ✅                                             |
-| Logs sans query string, sans secret ni téléphone                                                        | ✅                                             |
-| CSP avec nonce par requête (`proxy.ts`, Sprint 12)                                                      | ✅                                             |
-| HSTS envoyé en HTTPS uniquement (Sprint 12)                                                             | ✅ à vérifier en staging derrière Caddy        |
-| IP réelle derrière proxy : `TRUST_PROXY_HOPS` (Sprint 12)                                               | ✅ à vérifier en staging (logs API)            |
-| Rate limit en mémoire (une instance)                                                                    | ⚠️ Redis avant plusieurs instances             |
-| Antivirus des images envoyées                                                                           | ⚠️ non branché (ADR 0006)                      |
-| Test d'intrusion externe                                                                                | ❌ non réalisé                                 |
+| Point                                                                                          | État                                    |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Sessions opaques `__Host-`, httpOnly, Secure, SameSite=Lax, 30 min d'inactivité / 12 h         | ✅                                      |
+| Origin vérifiée sur toutes les mutations                                                       | ✅                                      |
+| RLS sur toutes les tables métier, runtime non propriétaire, fonctions SECURITY DEFINER bornées | ✅                                      |
+| Personnel : rôle lu en base + MFA ; séparation ADMIN / SUPPORT / FINANCE                       | ✅                                      |
+| Webhooks : HMAC sur corps brut, fenêtre de 5 min, idempotence, quarantaine                     | ✅                                      |
+| Fonctions de développement (MOCK, connexion démo) refusées en production                       | ✅ testé E2E                            |
+| Journal comptable immuable pour le runtime                                                     | ✅                                      |
+| Rate limit : connexion, catalogue, webhooks, remise, **écritures acheteur (nouveau)**          | ✅                                      |
+| Logs sans query string, sans secret ni téléphone                                               | ✅                                      |
+| CSP avec nonce par requête (`proxy.ts`, Sprint 12)                                             | ✅                                      |
+| HSTS envoyé en HTTPS uniquement (Sprint 12)                                                    | ✅ à vérifier en staging derrière Caddy |
+| IP réelle derrière proxy : `TRUST_PROXY_HOPS` (Sprint 12)                                      | ✅ à vérifier en staging (logs API)     |
+| Rate limit en mémoire (une instance)                                                           | ⚠️ Redis avant plusieurs instances      |
+| Antivirus des images envoyées                                                                  | ⚠️ non branché (ADR 0006)               |
+| Test d'intrusion externe                                                                       | ❌ non réalisé                          |
 
 ## Bloquants externes (décisions et accès requis)
 

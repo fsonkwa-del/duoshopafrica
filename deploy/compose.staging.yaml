@@ -98,7 +98,13 @@ services:
       CUSTOM_REQUEST_HEADERS: Host:${AUTH_DOMAIN},X-Forwarded-Proto:https
     volumes: ["zitadel-bootstrap:/zitadel/bootstrap:ro"]
     healthcheck:
-      test: ["CMD", "/bin/sh", "-c", "node /app/healthcheck.mjs http://localhost:3000/ui/v2/login/healthy"]
+      test:
+        [
+          "CMD",
+          "/bin/sh",
+          "-c",
+          "node /app/healthcheck.mjs http://localhost:3000/ui/v2/login/healthy",
+        ]
       interval: 10s
       timeout: 30s
       retries: 12
