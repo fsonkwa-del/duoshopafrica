@@ -637,3 +637,12 @@ Premier passage sur GitHub Actions (Linux, Node 24, PostgreSQL 17.6, base neuve)
   - la préparation E2E crée `.local/` (absent sur machine neuve) ;
   - en CI, les échecs `test:db` (avec les erreurs du serveur PostgreSQL) et Playwright (rapporteur `github`) sont publiés en annotations, lisibles sans connexion.
 - Résultat : CI GitHub Actions **entièrement verte** (run 41483778344) : migrations, données initiales, 152 tests sur base réelle, lint, typecheck, tests unitaires, build, E2E Playwright mobile et bureau, images Docker.
+
+## Sprint 13 — Pré-production en ligne (Hetzner)
+
+- Serveur Hetzner Cloud CX23 (2 vCPU, 4 Go, Ubuntu 24.04, Falkenstein), créé par API avec l'accord de l'utilisateur : clé SSH dédiée, pare-feu 22/80/443, Docker 29 et Compose 2.40 (paquets Ubuntu), 4 Go d'échange. Secrets générés sur le serveur (fichiers `deploy/*.env`, mode 600), jamais transmis.
+- Compose complet en service : PostgreSQL 17, migrations, API, worker, site, Zitadel v4.19.4 + Login V2, Caddy (Let's Encrypt via sslip.io).
+- Zitadel : compte machine `provisioner` (jeton lisible par le seul conteneur zitadel) ; projet `DuoShop` et application OIDC Web PKCE créés par l'API Management ; inscription autorisée.
+- **Défaut trouvé** : en mode strict, Turborepo ne transmettait pas `API_INTERNAL_URL` au build Next ; l'image web relayait `/v1` vers `127.0.0.1:4000` (erreur 500 à la connexion). Corrigé dans `turbo.json` (`env`).
+- Contrôles en ligne : `/fr`, `/fr/products` et `/fr/cart` répondent 200 ; `/fr/dev-login` 404 ; CSP avec nonce et HSTS présents ; `/v1/auth/login` redirige vers Zitadel, page de connexion 200.
+- Non configuré : CinetPay sandbox (paiement), stockage S3 (photos), SMTP (e-mails de vérification).

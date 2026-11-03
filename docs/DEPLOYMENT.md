@@ -1,6 +1,6 @@
 # Déploiement de pré-production (staging) — mode TEST
 
-État au 03/11/2026 : **préparé, pas encore exécuté**. Hébergeur choisi : **Hetzner Cloud** (un serveur, environ 4 à 5 € par mois, prix à confirmer sur hetzner.com). Images construites et testées en CI (job `images`) ; Compose validé (`docker compose config`).
+État au 03/11/2026 : **pré-production en ligne** sur Hetzner Cloud (CX23, Falkenstein, 5,49 € + 0,50 € d'IPv4 par mois) : https://duoshop.2-31-200-122.sslip.io (boutique) et https://auth.2-31-200-122.sslip.io (Zitadel). Paiement, photos et e-mails pas encore configurés (voir ci-dessous).
 
 ## Contenu
 
