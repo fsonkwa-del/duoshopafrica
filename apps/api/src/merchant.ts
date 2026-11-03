@@ -16,6 +16,7 @@ import {
   errorSchema as error,
   requirePrincipal,
   requireSameOrigin,
+  writeLimit,
 } from "./guards";
 import { requireStaff } from "./staff";
 
@@ -40,6 +41,56 @@ export async function merchantRoutes(
   options: { db: Database; webOrigin: string },
 ) {
   const { db, webOrigin } = options;
+
+  // Ouverture d'une boutique : en attente jusqu'à l'approbation (demande de vérification).
+  app.post(
+    "/v1/stores",
+    {
+      config: writeLimit,
+      schema: {
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["name", "slug"],
+          properties: {
+            name: { type: "string", minLength: 2, maxLength: 80 },
+            slug: { type: "string", minLength: 3, maxLength: 40 },
+          },
+        },
+        response: {
+          201: {
+            type: "object",
+            required: ["id"],
+            properties: { id: { type: "string" } },
+          },
+          400: error,
+          401: error,
+          403: error,
+          409: error,
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!(await requireSameOrigin(request, reply, webOrigin))) return reply;
+      const principal = await requirePrincipal(db, request, reply);
+      if (!principal) return reply;
+      const body = request.body as { name: string; slug: string };
+      const [row] = await asRuntime(
+        db,
+        { userId: principal.userId },
+        (tx) =>
+          tx.$queryRaw<{ outcome: string; store_id: string | null }[]>`
+          SELECT * FROM open_store(${body.name}, ${body.slug.trim().toLowerCase()}, ${request.id})`,
+      );
+      if (row?.outcome === "created" && row.store_id)
+        return reply.code(201).send({ id: row.store_id });
+      if (row?.outcome === "invalid")
+        return reply.code(400).send({ error: "invalid_request" });
+      if (row?.outcome === "unauthenticated")
+        return reply.code(401).send({ error: "unauthenticated" });
+      return reply.code(409).send({ error: row?.outcome ?? "conflict" });
+    },
+  );
 
   app.post(
     "/v1/stores/:storeId/verification",

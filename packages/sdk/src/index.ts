@@ -117,6 +117,16 @@ export const getStore = (
   storeId: string,
 ) =>
   authorized<StoreDTO>(baseUrl, `/v1/stores/${store(storeId)}`, sessionToken);
+export const openStore = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: { name: string; slug: string },
+) =>
+  authorized<{ id: string }>(baseUrl, "/v1/stores", sessionToken, {
+    origin,
+    body,
+  });
 export const submitVerification = (
   baseUrl: string,
   sessionToken: string,

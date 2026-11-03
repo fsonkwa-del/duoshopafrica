@@ -140,6 +140,7 @@ after(async () => {
   const userId = { in: ids.users };
   await db.auditLog.deleteMany({ where: { tenantId } });
   await db.merchantVerification.deleteMany({ where: { tenantId } });
+  await db.inventoryLocation.deleteMany({ where: { tenantId } });
   await db.storeMember.deleteMany({ where: { tenantId } });
   await db.store.deleteMany({ where: { tenantId } });
   await db.tenant.deleteMany({ where: { id: tenantId } });
@@ -340,5 +341,134 @@ describe("rejection, conflict of interest and suspension", () => {
       where: { resourceId: store.p, action: "merchant.reinstate" },
     });
     assert.equal((audit.detail as { reason: string }).reason, reason);
+  });
+});
+
+describe("a signed-in user opens a store", () => {
+  const open = (
+    token: string,
+    payload: object,
+    origin: string | null = webOrigin,
+  ) =>
+    app.inject({
+      method: "POST",
+      url: "/v1/stores",
+      headers: headers(token, origin),
+      payload,
+    });
+  const slug = () => `test-${randomUUID().slice(0, 8)}`;
+  async function track(storeId: string) {
+    const created = await db.store.findUniqueOrThrow({
+      where: { id: storeId },
+    });
+    ids.tenants.push(created.tenantId);
+    return created;
+  }
+
+  test("requires the site origin and a session", async () => {
+    const u = await user();
+    assert.equal(
+      (await open(u.token, { name: "Awa", slug: slug() }, null)).statusCode,
+      403,
+    );
+    const anonymous = await app.inject({
+      method: "POST",
+      url: "/v1/stores",
+      headers: { origin: webOrigin },
+      payload: { name: "Awa", slug: slug() },
+    });
+    assert.equal(anonymous.statusCode, 401);
+  });
+
+  test("creates a pending store owned by the user, ready to be verified", async () => {
+    const u = await user();
+    const address = slug();
+    const res = await open(u.token, {
+      name: "  Pagnes d'Awa ",
+      slug: address.toUpperCase(),
+    });
+    assert.equal(res.statusCode, 201);
+    const created = await track(res.json().id);
+    assert.equal(created.slug, address);
+    assert.equal(created.name, "Pagnes d'Awa");
+    const tenant = await db.tenant.findUniqueOrThrow({
+      where: { id: created.tenantId },
+    });
+    assert.equal(tenant.status, "PENDING");
+    const member = await db.storeMember.findFirstOrThrow({
+      where: { storeId: created.id },
+    });
+    assert.equal(member.userId, u.id);
+    assert.equal(member.role, "OWNER");
+    assert.equal(
+      await db.inventoryLocation.count({ where: { storeId: created.id } }),
+      1,
+    );
+    const audit = await db.auditLog.findFirstOrThrow({
+      where: { resourceId: created.id, action: "store.open" },
+    });
+    assert.equal(audit.actorId, u.id);
+    const me = await app.inject({
+      method: "GET",
+      url: "/v1/me",
+      headers: headers(u.token),
+    });
+    assert.deepEqual(
+      me.json().stores.map((s: { id: string; role: string }) => [s.id, s.role]),
+      [[created.id, "OWNER"]],
+    );
+    // Étape suivante du parcours : la demande de vérification.
+    assert.equal((await submit(u.token, created.id)).statusCode, 200);
+  });
+
+  test("refuses malformed or reserved addresses", async () => {
+    const u = await user();
+    for (const bad of [
+      "ab",
+      "bad--slug",
+      "-start",
+      "end-",
+      "demo-shop",
+      "accentué",
+      "a b c",
+    ])
+      assert.equal(
+        (await open(u.token, { name: "Awa", slug: bad })).statusCode,
+        400,
+        bad,
+      );
+    assert.equal(
+      (await open(u.token, { name: "A", slug: slug() })).statusCode,
+      400,
+    );
+  });
+
+  test("an address belongs to one store, even under concurrent requests", async () => {
+    const [a, b] = [await user(), await user()];
+    const address = slug();
+    const results = await Promise.all([
+      open(a.token, { name: "Awa", slug: address }),
+      open(b.token, { name: "Bella", slug: address }),
+    ]);
+    const codes = results.map((r) => r.statusCode).sort();
+    assert.deepEqual(codes, [201, 409]);
+    const winner = results.find((r) => r.statusCode === 201);
+    await track(winner?.json().id);
+    assert.equal(
+      results.find((r) => r.statusCode === 409)?.json().error,
+      "slug_taken",
+    );
+  });
+
+  test("at most three stores awaiting approval per person", async () => {
+    const u = await user();
+    for (let i = 0; i < 3; i++) {
+      const res = await open(u.token, { name: `Awa ${i}`, slug: slug() });
+      assert.equal(res.statusCode, 201);
+      await track(res.json().id);
+    }
+    const fourth = await open(u.token, { name: "Awa 4", slug: slug() });
+    assert.equal(fourth.statusCode, 409);
+    assert.equal(fourth.json().error, "too_many_pending");
   });
 });

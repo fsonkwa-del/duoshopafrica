@@ -138,7 +138,7 @@ export default async function Home({
             <PinIcon /> {h.quickPickup}
           </li>
           <li>
-            <Link href={`/${locale}/account`}>
+            <Link href={`/${locale}/account/stores/new`}>
               <StoreIcon /> {h.quickSell}
             </Link>
           </li>

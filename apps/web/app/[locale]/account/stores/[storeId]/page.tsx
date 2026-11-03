@@ -45,6 +45,7 @@ export default async function StorePage({
       <SellerNav locale={locale} storeId={storeId} current={path} />
       <p>{back}</p>
       <h1>{store.name}</h1>
+      {outcome === "opened" && <Notice>{t.openStore.next}</Notice>}
       {store.isDemo && <Notice>{t.demoStore}</Notice>}
       <dl className="facts">
         <dt>{t.yourRole}</dt>

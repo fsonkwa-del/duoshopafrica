@@ -103,6 +103,26 @@ export const messages = {
     myStores: "Mes boutiques",
     signedInAs: "Connecté avec",
     noStores: "Aucune boutique n'est rattachée à votre compte.",
+    openStore: {
+      link: "Ouvrir ma boutique",
+      title: "Ouvrir ma boutique",
+      intro:
+        "Votre boutique reste invisible et sans vente tant qu'un administrateur ne l'a pas approuvée. Vous pouvez déjà préparer vos produits.",
+      name: "Nom de la boutique",
+      slug: "Adresse de la boutique",
+      slugHint:
+        "3 à 40 caractères : lettres minuscules sans accent, chiffres et tirets. Exemple : pagnes-awa.",
+      submit: "Créer la boutique",
+      next: "Boutique créée. Étape suivante : envoyez votre demande de vérification ci-dessous.",
+      errors: {
+        slug_taken: "Cette adresse est déjà prise : choisissez-en une autre.",
+        too_many_pending:
+          "Vous avez déjà trois boutiques en attente d'approbation.",
+        invalid_request:
+          "Nom ou adresse invalide : vérifiez le format demandé.",
+        unknown: "La boutique n'a pas pu être créée. Réessayez.",
+      },
+    },
     signInRequired: "Connexion requise",
     signIn: "Se connecter",
     signInHelp: "Connectez-vous pour accéder à vos boutiques.",
@@ -905,6 +925,24 @@ export const messages = {
     myStores: "My stores",
     signedInAs: "Signed in as",
     noStores: "No store is linked to your account.",
+    openStore: {
+      link: "Open my store",
+      title: "Open my store",
+      intro:
+        "Your store stays hidden and cannot sell until an administrator approves it. You can already prepare your products.",
+      name: "Store name",
+      slug: "Store address",
+      slugHint:
+        "3 to 40 characters: lowercase letters without accents, digits and hyphens. Example: awa-fabrics.",
+      submit: "Create the store",
+      next: "Store created. Next step: send your verification request below.",
+      errors: {
+        slug_taken: "This address is already taken: choose another one.",
+        too_many_pending: "You already have three stores awaiting approval.",
+        invalid_request: "Invalid name or address: check the required format.",
+        unknown: "The store could not be created. Please try again.",
+      },
+    },
     signInRequired: "Sign-in required",
     signIn: "Sign in",
     signInHelp: "Sign in to access your stores.",

@@ -264,3 +264,31 @@ test("back-office pages use the full width with a framed side menu", async ({
   expect((main?.width ?? 0) / viewport).toBeGreaterThan(0.9);
   await expectFitsScreen(page);
 });
+
+test("a signed-in user opens a store, then is asked to request verification", async ({
+  browser,
+}) => {
+  const context = await browser.newContext(deviceOptions());
+  const suffix = Math.random().toString(36).slice(2, 8);
+  await signIn(context, await session(`e2e-opener-${suffix}@example.invalid`));
+  const page = await context.newPage();
+  await page.goto(resolve("/fr/account"));
+  await page.getByRole("link", { name: "Ouvrir ma boutique" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Ouvrir ma boutique" }),
+  ).toBeVisible();
+  await expectFitsScreen(page);
+  // Nom « TEST-E2E » : l'organisation créée est supprimée par le nettoyage des tests.
+  await page.getByLabel("Nom de la boutique").fill("TEST-E2E");
+  await page.getByLabel("Adresse de la boutique").fill(`e2e-shop-${suffix}`);
+  await page.getByRole("button", { name: "Créer la boutique" }).click();
+  await expect(page.getByText("Boutique créée.")).toBeVisible();
+  await expect(page.getByText(`e2e-shop-${suffix}`)).toBeVisible();
+  // Même adresse une seconde fois : refus explicite.
+  await page.goto(resolve("/fr/account/stores/new"));
+  await page.getByLabel("Nom de la boutique").fill("TEST-E2E");
+  await page.getByLabel("Adresse de la boutique").fill(`e2e-shop-${suffix}`);
+  await page.getByRole("button", { name: "Créer la boutique" }).click();
+  await expect(page.getByText("Cette adresse est déjà prise")).toBeVisible();
+  await context.close();
+});

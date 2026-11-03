@@ -168,7 +168,7 @@ export async function ShopShell({
             ))}
             <span className="spacer" />
             <Link href={`/${locale}/orders`}>{t.orders.title}</Link>
-            <Link href={`/${locale}/account`}>{h.sell}</Link>
+            <Link href={`/${locale}/account/stores/new`}>{h.sell}</Link>
           </div>
         </nav>
       </header>

@@ -47,6 +47,11 @@ export default async function Account({
           ))}
         </ul>
       )}
+      <p>
+        <Link className="cta" href={`/${locale}/account/stores/new`}>
+          {t.openStore.link}
+        </Link>
+      </p>
     </AccountShell>
   );
 }
