@@ -4,3 +4,17 @@
 	encode zstd gzip
 	reverse_proxy web:3000
 }
+
+# Identité (Zitadel) : page de connexion Login V2 sous /ui/v2/login, le reste vers l'API Zitadel
+# en HTTP/2 sans TLS (gRPC et console), comme l'exemple officiel de Zitadel.
+{$AUTH_DOMAIN} {
+	encode zstd gzip
+	@root path /
+	rewrite @root /ui/v2/login/
+	handle /ui/v2/login* {
+		reverse_proxy zitadel-login:3000
+	}
+	handle {
+		reverse_proxy h2c://zitadel:8080
+	}
+}

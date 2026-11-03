@@ -1,25 +1,125 @@
 # Déploiement de pré-production (staging) — mode TEST
 
-État au 30/10/2026 : **préparé, pas encore exécuté**. Aucun hébergeur n'est choisi. Le `Dockerfile` n'a pas pu être construit sur le poste de développement (démon Docker indisponible) ; la CI le construit (job `images`). Le Compose est validé (`docker compose config`).
+État au 03/11/2026 : **préparé, pas encore exécuté**. Hébergeur choisi : **Hetzner Cloud** (un serveur, environ 4 à 5 € par mois, prix à confirmer sur hetzner.com). Images construites et testées en CI (job `images`) ; Compose validé (`docker compose config`).
 
 ## Contenu
 
 - `deploy/Dockerfile` : image unique du monorepo, cibles `migrate`, `api`, `worker`, `web`. Les réécritures `/v1` de Next sont figées au build : `API_INTERNAL_URL=http://api:4000`.
-- `deploy/compose.staging.yaml` : PostgreSQL 17, migrations (job unique), API, worker, site web, Caddy (TLS Let's Encrypt automatique). Seul Caddy est exposé ; l'API reste interne et le site lui relaie `/v1/*`, webhooks compris.
-- `deploy/staging.env.example` : variables à copier dans `deploy/staging.env` (ignoré par Git).
+- `deploy/compose.staging.yaml` :
+  - PostgreSQL 17 (bases `duoshop` et `zitadel`), migrations (job unique), API, worker, site web ;
+  - Zitadel v4.19.4 et sa page de connexion Login V2 (d'après l'exemple officiel `deploy/compose` de Zitadel) ;
+  - Caddy : TLS Let's Encrypt automatique pour `SITE_DOMAIN` et `AUTH_DOMAIN`, seul service exposé. L'API reste interne ; le site lui relaie `/v1/*`, webhooks compris.
+- `deploy/staging.env.example` et `deploy/zitadel.env.example` : à copier en `deploy/staging.env` et `deploy/zitadel.env` (ignorés par Git).
+- `deploy/postgres-init/10-zitadel.sh` : crée le rôle et la base `zitadel` au premier démarrage (volume vide).
+- Données de référence (XAF, CM, fr/en) : migration `202611120001_reference_data`. Le seed de démonstration reste interdit en production.
 
-## Mise en route sur un hôte Docker
+## Ce qui fonctionnera, et ce qui manque encore
 
-1. DNS : `SITE_DOMAIN` pointe vers l'hôte ; ports 80 et 443 ouverts.
-2. `cp deploy/staging.env.example deploy/staging.env`, puis remplir. Mot de passe PostgreSQL fort, secrets dans un coffre.
-3. `docker compose -f deploy/compose.staging.yaml --env-file deploy/staging.env up -d --build`.
-4. Premier administrateur : `pnpm platform:grant <email> ADMIN`, à exécuter dans un conteneur `api` ou par une session d'administration de la base ; idem `FINANCE`.
-5. Contrôles :
-   - `https://SITE_DOMAIN/fr` répond ;
-   - en-têtes `Content-Security-Policy` (nonce) et `Strict-Transport-Security` présents ;
-   - `/fr/dev-login` répond 404 ;
-   - `/v1/../health/ready` n'est pas exposé publiquement : vérifier depuis le réseau Docker.
-6. Sauvegardes : `pg_dump` quotidien hors hôte et test de restauration (procédure dans OPERATIONS.md), ou base managée avec PITR.
+| Fonction | État en ligne |
+|---|---|
+| Catalogue, recherche, catégories, panier visiteur | ✅ |
+| Création de compte et connexion (Zitadel) | ✅ ; e-mails de vérification seulement si SMTP configuré |
+| Espace vendeur, administration (MFA) | ✅ |
+| Paiement | ❌ tant que les identifiants **sandbox CinetPay** manquent (le paiement simulé est refusé en production) |
+| Photos produit | ❌ tant qu'un stockage S3 n'est pas configuré (envoi refusé, 503) |
+
+## Mise en ligne sur Hetzner, pas à pas
+
+### 1. Serveur (console Hetzner, par le titulaire du compte)
+
+1. Créer le compte Hetzner Cloud et un projet `duoshop-staging`.
+2. Sur le poste Windows, créer une clé SSH : `ssh-keygen -t ed25519`, puis copier le contenu de `~/.ssh/id_ed25519.pub`.
+3. Créer le serveur :
+   - type partagé x86, 2 vCPU et 4 Go de RAM (CX22 ou son successeur) ;
+   - image **Ubuntu 24.04** ;
+   - emplacement en Europe (Falkenstein, Nuremberg ou Helsinki) ;
+   - clé SSH ci-dessus, aucun mot de passe root.
+4. Pare-feu Hetzner : entrées autorisées TCP 22, 80, 443 uniquement.
+5. Noter l'adresse IPv4, par exemple `203.0.113.10`.
+
+### 2. Noms de domaine
+
+Sans domaine acheté, utiliser sslip.io, qui résout le nom vers l'IP qu'il contient :
+
+- `SITE_DOMAIN=duoshop.203-0-113-10.sslip.io`
+- `AUTH_DOMAIN=auth.203-0-113-10.sslip.io`
+
+Avec un domaine : deux enregistrements A, par exemple `staging` et `auth.staging`, vers l'IP du serveur.
+
+### 3. Préparer le serveur
+
+```sh
+ssh root@203.0.113.10
+apt update && apt -y upgrade && apt -y install git unattended-upgrades
+# Docker, méthode officielle
+curl -fsSL https://get.docker.com | sh
+# Mémoire d'échange : la construction de Next.js dépasse parfois 4 Go
+fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+git clone https://github.com/fsonkwa-del/duoshopafrica.git /opt/duoshop
+cd /opt/duoshop && git checkout sprints/1-8-mvp-foundations
+```
+
+### 4. Secrets et configuration
+
+```sh
+cd /opt/duoshop/deploy
+cp staging.env.example staging.env && cp zitadel.env.example zitadel.env
+openssl rand -hex 16   # ZITADEL_MASTERKEY (32 caractères)
+openssl rand -hex 24   # à répéter pour chaque mot de passe ou secret
+nano staging.env zitadel.env
+chmod 600 staging.env zitadel.env
+```
+
+- `staging.env` : `SITE_DOMAIN`, `AUTH_DOMAIN`, `WEB_ORIGIN=https://<SITE_DOMAIN>`, `OIDC_ISSUER=https://<AUTH_DOMAIN>`, `POSTGRES_PASSWORD`, `LOGIN_SESSION_COOKIE_SECRET`. `OIDC_CLIENT_ID` reste vide jusqu'à l'étape 6.
+- `zitadel.env` : `ZITADEL_MASTERKEY`, `ZITADEL_DB_PASSWORD`, le même mot de passe dans `ZITADEL_DATABASE_POSTGRES_DSN`, l'e-mail et le mot de passe du premier administrateur Zitadel. Mot de passe d'au moins 8 caractères avec majuscule, minuscule, chiffre et symbole.
+- Les secrets ne quittent jamais le serveur : ni Git, ni messagerie. Les conserver aussi dans un gestionnaire de mots de passe.
+
+### 5. Démarrage
+
+```sh
+cd /opt/duoshop
+docker compose -f deploy/compose.staging.yaml --env-file deploy/staging.env up -d --build
+docker compose -f deploy/compose.staging.yaml --env-file deploy/staging.env ps
+```
+
+La première construction prend plusieurs minutes. Ensuite :
+
+- `https://<SITE_DOMAIN>/fr` affiche la boutique ;
+- `https://<AUTH_DOMAIN>/ui/console` affiche la console Zitadel.
+
+### 6. Application OIDC dans Zitadel
+
+1. Console Zitadel : se connecter avec l'administrateur de l'étape 4.
+2. Créer un projet `DuoShop`, puis une application **Web** avec la méthode **PKCE** (sans secret).
+3. URI de redirection : `https://<SITE_DOMAIN>/v1/auth/callback`. Retour après déconnexion : `https://<SITE_DOMAIN>/fr`.
+4. Dans « Token Settings », activer « User Info inside ID Token », comme en local.
+5. Copier l'identifiant client dans `OIDC_CLIENT_ID` (`staging.env`), puis relancer :
+   `docker compose -f deploy/compose.staging.yaml --env-file deploy/staging.env up -d api`.
+6. Paramètres de connexion de l'instance : vérifier que l'inscription est autorisée, et activer la MFA (TOTP) pour le personnel.
+7. Avant d'inviter des testeurs : configurer le SMTP (`zitadel.env`, ou console « Notification settings »). Sans lui, les e-mails de vérification ne partent pas.
+
+### 7. Premier administrateur DuoShop
+
+1. Se connecter une fois sur le site avec son compte Zitadel, et activer la MFA (TOTP) dans Zitadel.
+2. Attribuer le rôle :
+   `docker compose -f deploy/compose.staging.yaml --env-file deploy/staging.env exec api sh -c "cd /app && DUOSHOP_OPERATOR=<nom> pnpm platform:grant <email> ADMIN"`.
+   Idem `FINANCE` pour la personne chargée des commissions.
+
+### 8. Contrôles
+
+- en-têtes `Content-Security-Policy` (nonce) et `Strict-Transport-Security` présents : `curl -sI https://<SITE_DOMAIN>/fr` ;
+- `/fr/dev-login` répond 404 ;
+- les logs de l'API montrent l'IP réelle des visiteurs ; sinon, ajuster `TRUST_PROXY_HOPS` ;
+- `docker compose ... logs -f api worker zitadel` sans erreur.
+
+### 9. Mises à jour, sauvegardes, arrêt
+
+- Mise à jour : `git pull`, puis la commande `up -d --build` de l'étape 5. Les migrations s'appliquent seules.
+- Sauvegarde quotidienne, à copier hors du serveur :
+  `docker compose ... exec -T postgres pg_dumpall -U duoshop | gzip > /root/backup-$(date +%F).sql.gz`.
+  La procédure de restauration est dans OPERATIONS.md.
+- Hetzner facture à l'heure : supprimer le serveur arrête la facturation. Faire d'abord un instantané (snapshot) si besoin.
 
 ## Activer CinetPay en sandbox
 

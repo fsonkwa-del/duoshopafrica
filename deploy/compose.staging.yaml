@@ -14,7 +14,11 @@ services:
       POSTGRES_DB: duoshop
       POSTGRES_USER: duoshop
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
-    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    # ZITADEL_DB_PASSWORD : rôle et base « zitadel » créés au premier démarrage (volume vide).
+    env_file: [zitadel.env]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U duoshop -d duoshop"]
       interval: 5s
@@ -47,16 +51,73 @@ services:
     environment:
       API_INTERNAL_URL: http://api:4000
     depends_on: [api]
+  # Identité : Zitadel v4 (version testée en local) et sa page de connexion Login V2, d'après
+  # l'exemple officiel deploy/compose de Zitadel. Servi sur AUTH_DOMAIN par Caddy.
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v4.19.4
+    user: "0"
+    command: start-from-init --masterkeyFromEnv --tlsMode external
+    env_file: [zitadel.env]
+    environment:
+      ZITADEL_PORT: 8080
+      ZITADEL_EXTERNALDOMAIN: ${AUTH_DOMAIN:?AUTH_DOMAIN requis}
+      ZITADEL_EXTERNALPORT: 443
+      ZITADEL_EXTERNALSECURE: "true"
+      ZITADEL_TLS_ENABLED: "false"
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: DuoShopAfrica
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: "false"
+      ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /zitadel/bootstrap/login-client.pat
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2099-01-01T00:00:00Z"
+      # « Créer mon compte » au checkout.
+      ZITADEL_DEFAULTINSTANCE_LOGINPOLICY_ALLOWREGISTER: "true"
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: https://${AUTH_DOMAIN}/ui/v2/login/
+      ZITADEL_OIDC_DEFAULTLOGINURLV2: https://${AUTH_DOMAIN}/ui/v2/login/login?authRequest=
+      ZITADEL_OIDC_DEFAULTLOGOUTURLV2: https://${AUTH_DOMAIN}/ui/v2/login/logout?post_logout_redirect=
+      ZITADEL_SAML_DEFAULTLOGINURLV2: https://${AUTH_DOMAIN}/ui/v2/login/login?samlRequest=
+    volumes: ["zitadel-bootstrap:/zitadel/bootstrap"]
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 30s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+  zitadel-login:
+    image: ghcr.io/zitadel/zitadel-login:v4.19.4
+    user: "0"
+    environment:
+      ZITADEL_API_URL: http://zitadel:8080
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+      ZITADEL_SERVICE_USER_TOKEN_FILE: /zitadel/bootstrap/login-client.pat
+      ZITADEL_SESSION_COOKIE_SECRET: ${LOGIN_SESSION_COOKIE_SECRET:?LOGIN_SESSION_COOKIE_SECRET requis}
+      CUSTOM_REQUEST_HEADERS: Host:${AUTH_DOMAIN},X-Forwarded-Proto:https
+    volumes: ["zitadel-bootstrap:/zitadel/bootstrap:ro"]
+    healthcheck:
+      test: ["CMD", "/bin/sh", "-c", "node /app/healthcheck.mjs http://localhost:3000/ui/v2/login/healthy"]
+      interval: 10s
+      timeout: 30s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      zitadel: { condition: service_healthy }
+    restart: unless-stopped
   caddy:
     image: caddy:2-alpine
     ports: ["80:80", "443:443"]
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN requis}
+      AUTH_DOMAIN: ${AUTH_DOMAIN:?AUTH_DOMAIN requis}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
-    depends_on: [web]
+    depends_on: [web, zitadel-login]
     restart: unless-stopped
 volumes:
   postgres-data:
   caddy-data:
+  zitadel-bootstrap:
