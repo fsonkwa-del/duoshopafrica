@@ -72,6 +72,10 @@ export class S3Storage implements ObjectStorage {
       region: settings.region,
       ...(settings.endpoint ? { endpoint: settings.endpoint } : {}),
       forcePathStyle: settings.forcePathStyle ?? Boolean(settings.endpoint),
+      // Sinon le SDK signe dans l'URL présignée la somme CRC32 d'un corps vide : tout envoi réel
+      // est refusé (BadDigest). Intégrité déjà garantie par type et longueur signés + réencodage.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId: settings.accessKeyId,
         secretAccessKey: settings.secretAccessKey,
