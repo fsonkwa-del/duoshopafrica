@@ -11,3 +11,4 @@ packages/database/generated/
 .local/
 deploy/*.env
 apps/web/public/demo-media/
+deploy/s3.json

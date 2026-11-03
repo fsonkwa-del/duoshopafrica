@@ -9,3 +9,4 @@
 .env.*
 !.env.example
 deploy/*.env
+deploy/s3.json

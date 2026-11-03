@@ -18,3 +18,11 @@
 		reverse_proxy h2c://zitadel:8080
 	}
 }
+
+# Photos (S3 SeaweedFS) : l'hôte d'origine est conservé, il fait partie des signatures.
+{$MEDIA_DOMAIN} {
+	request_body {
+		max_size 12MB
+	}
+	reverse_proxy seaweedfs:8333
+}

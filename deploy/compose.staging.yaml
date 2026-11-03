@@ -120,19 +120,35 @@ services:
     depends_on:
       zitadel: { condition: service_healthy }
     restart: unless-stopped
+  # Photos produit : stockage S3 auto-hébergé (SeaweedFS). Exposé par Caddy sur MEDIA_DOMAIN :
+  # envoi direct du navigateur (URL présignée, CORS limité au site) et lecture publique du seul
+  # bucket public (identité anonyme en lecture, deploy/s3.json).
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48
+    command: >-
+      server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json
+      -s3.allowedOrigins=${WEB_ORIGIN:?WEB_ORIGIN requis}
+      -s3.externalUrl=https://${MEDIA_DOMAIN:?MEDIA_DOMAIN requis}
+      -master.volumeSizeLimitMB=1024 -volume.max=0
+    volumes:
+      - seaweedfs-data:/data
+      - ./s3.json:/etc/seaweedfs/s3.json:ro
+    restart: unless-stopped
   caddy:
     image: caddy:2-alpine
     ports: ["80:80", "443:443"]
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN requis}
       AUTH_DOMAIN: ${AUTH_DOMAIN:?AUTH_DOMAIN requis}
+      MEDIA_DOMAIN: ${MEDIA_DOMAIN:?MEDIA_DOMAIN requis}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
-    depends_on: [web, zitadel-login]
+    depends_on: [web, zitadel-login, seaweedfs]
     restart: unless-stopped
 volumes:
   postgres-data:
   caddy-data:
   zitadel-bootstrap:
   zitadel-admin:
+  seaweedfs-data:
