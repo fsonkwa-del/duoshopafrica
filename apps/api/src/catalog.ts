@@ -15,6 +15,7 @@ import {
   requireSameOrigin,
 } from "./guards";
 import { inStore, type Scoped, type StoreContext } from "./store-scope";
+import { mediaUrl } from "./storefront";
 
 const DEFAULT_LOCATION = "Principal";
 const uuid = { type: "string", format: "uuid" } as const;
@@ -72,7 +73,13 @@ async function defaultLocation(tx: ScopedTx, ctx: StoreContext) {
 const productInclude = {
   media: {
     orderBy: { position: "asc" },
-    select: { id: true, status: true, rejectReason: true, altFr: true },
+    select: {
+      id: true,
+      status: true,
+      rejectReason: true,
+      altFr: true,
+      publicKey: true,
+    },
   },
   variants: {
     orderBy: { createdAt: "asc" },
@@ -87,6 +94,7 @@ type ProductRow = Awaited<
     status: "PENDING" | "READY" | "REJECTED";
     rejectReason: string | null;
     altFr: string;
+    publicKey: string | null;
   }[];
   variants: (Awaited<
     ReturnType<ScopedTx["productVariant"]["findMany"]>
@@ -107,7 +115,7 @@ function toVariant(v: ProductRow["variants"][number]): VariantDTO {
     stock: { onHand, reserved, available: onHand - reserved },
   };
 }
-function toProduct(p: ProductRow): ProductDTO {
+function toProduct(p: ProductRow, mediaBaseUrl?: string): ProductDTO {
   return {
     id: p.id,
     categoryId: p.categoryId,
@@ -116,7 +124,10 @@ function toProduct(p: ProductRow): ProductDTO {
     status: p.status,
     version: p.version,
     variants: p.variants.map(toVariant),
-    media: p.media,
+    media: p.media.map(({ publicKey, ...m }) => ({
+      ...m,
+      url: mediaUrl(mediaBaseUrl, publicKey),
+    })),
   };
 }
 // La variante doit appartenir à un produit de CETTE boutique (pas seulement du tenant).
@@ -128,9 +139,10 @@ function variantOfStore(tx: ScopedTx, ctx: StoreContext, variantId: string) {
 
 export async function catalogRoutes(
   app: FastifyInstance,
-  options: { db: Database; webOrigin: string },
+  options: { db: Database; webOrigin: string; mediaBaseUrl?: string },
 ) {
-  const { db, webOrigin } = options;
+  const { db, webOrigin, mediaBaseUrl } = options;
+  const toDTO = (p: ProductRow) => toProduct(p, mediaBaseUrl);
 
   app.get(
     "/v1/stores/:storeId/products",
@@ -153,7 +165,7 @@ export async function catalogRoutes(
           })) as ProductRow[];
           return {
             code: 200 as const,
-            body: { products: rows.map(toProduct) },
+            body: { products: rows.map(toDTO) },
           };
         },
       );
@@ -274,7 +286,7 @@ export async function catalogRoutes(
               where: { id: product.id },
               include: productInclude,
             })) as ProductRow;
-            return { code: 201 as const, body: toProduct(created) };
+            return { code: 201 as const, body: toDTO(created) };
           },
         );
         return send(reply, result);
@@ -431,7 +443,7 @@ export async function catalogRoutes(
             where: { id: productId },
             include: productInclude,
           })) as ProductRow;
-          return { code: 200 as const, body: toProduct(updated) };
+          return { code: 200 as const, body: toDTO(updated) };
         },
       );
       return send(reply, result);

@@ -286,6 +286,29 @@ td {
   font-size: 1rem;
   margin-block: 0 var(--space-2);
 }
+.photo-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.photo-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+.photo-list img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.photo-list span {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
 .inline-forms {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));

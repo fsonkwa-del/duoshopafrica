@@ -107,6 +107,7 @@ before(async () => {
 after(async () => {
   await Promise.all([app.close(), withoutStorage.close()]);
   const tenantId = { in: ids.tenants };
+  await db.auditLog.deleteMany({ where: { tenantId } });
   await db.productMedia.deleteMany({ where: { tenantId } });
   await db.productVariant.deleteMany({ where: { tenantId } });
   await db.product.deleteMany({ where: { tenantId } });
@@ -249,5 +250,149 @@ describe("photos in the storefront", () => {
       card?.image?.url,
       `${mediaBaseUrl}/products/x/${ready.id}.webp`,
     );
+  });
+});
+
+describe("sellers manage their photos", () => {
+  const act = (
+    token: string,
+    storeId: string,
+    productId: string,
+    mediaId: string,
+    action: "remove" | "primary",
+    origin = webOrigin,
+  ) =>
+    app.inject({
+      method: "POST",
+      url: `/v1/stores/${storeId}/products/${productId}/media/${mediaId}/${action}`,
+      headers: { cookie: `${SESSION_COOKIE}=${token}`, origin },
+      payload: {},
+    });
+  async function threePhotos() {
+    const seller = await sellerWithProduct();
+    const media: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const created = await request(
+        app,
+        seller.token,
+        seller.storeId,
+        seller.productId,
+        photo,
+      );
+      media.push(created.json().mediaId);
+    }
+    for (const id of media.slice(0, 2))
+      await completeMedia(db, {
+        id,
+        status: "READY",
+        publicKey: `products/x/${id}.webp`,
+        width: 800,
+        height: 800,
+        bytes: 51_000,
+      });
+    return { ...seller, media };
+  }
+  const order = async (productId: string) =>
+    (
+      await db.productMedia.findMany({
+        where: { productId },
+        orderBy: { position: "asc" },
+        select: { id: true, position: true },
+      })
+    ).map((m) => [m.id, m.position]);
+
+  test("a published photo becomes the main one, others follow without gaps", async () => {
+    const s = await threePhotos();
+    const [first, second, third] = s.media as [string, string, string];
+    const done = await act(s.token, s.storeId, s.productId, second, "primary");
+    assert.equal(done.statusCode, 200);
+    assert.deepEqual(await order(s.productId), [
+      [second, 0],
+      [first, 1],
+      [third, 2],
+    ]);
+    const shown = (
+      await app.inject(`/v1/catalog/products/${s.productId}?lang=fr`)
+    ).json();
+    assert.equal(
+      shown.media[0].url,
+      `${mediaBaseUrl}/products/x/${second}.webp`,
+    );
+    // Une photo encore en vérification ne peut pas devenir principale.
+    const pending = await act(
+      s.token,
+      s.storeId,
+      s.productId,
+      third,
+      "primary",
+    );
+    assert.equal(pending.statusCode, 409);
+    assert.deepEqual(pending.json(), { error: "media_not_ready" });
+    const audit = await db.auditLog.count({
+      where: { resourceId: s.productId, action: "catalog.media.primary" },
+    });
+    assert.equal(audit, 1);
+  });
+
+  test("removing a photo renumbers the rest; a photo being checked stays", async () => {
+    const s = await threePhotos();
+    const [first, second, third] = s.media as [string, string, string];
+    assert.equal(
+      (await act(s.token, s.storeId, s.productId, first, "remove")).statusCode,
+      200,
+    );
+    assert.deepEqual(await order(s.productId), [
+      [second, 0],
+      [third, 1],
+    ]);
+    const pending = await act(s.token, s.storeId, s.productId, third, "remove");
+    assert.equal(pending.statusCode, 409);
+    assert.deepEqual(pending.json(), { error: "media_processing" });
+    const listed = (
+      await app.inject({
+        url: `/v1/stores/${s.storeId}/products`,
+        headers: { cookie: `${SESSION_COOKIE}=${s.token}` },
+      })
+    ).json();
+    const product = listed.products.find(
+      (p: { id: string }) => p.id === s.productId,
+    );
+    assert.equal(
+      product.media[0].url,
+      `${mediaBaseUrl}/products/x/${second}.webp`,
+    );
+    assert.equal(product.media[1].url, null);
+  });
+
+  test("only the store's own sellers, from the shop's origin, can change photos", async () => {
+    const s = await threePhotos();
+    const target = s.media[0] as string;
+    assert.equal(
+      (await act(f.rival, s.storeId, s.productId, target, "remove")).statusCode,
+      404,
+    );
+    assert.equal(
+      (await act(f.rival, f.storeB, s.productId, target, "remove")).statusCode,
+      404,
+    );
+    // Un produit d'une autre boutique ne permet pas d'atteindre cette photo.
+    assert.equal(
+      (await act(f.owner, f.storeA, f.productA, target, "remove")).statusCode,
+      404,
+    );
+    assert.equal(
+      (
+        await act(
+          s.token,
+          s.storeId,
+          s.productId,
+          target,
+          "remove",
+          "https://evil.example",
+        )
+      ).statusCode,
+      403,
+    );
+    assert.equal((await order(s.productId)).length, 3);
   });
 });

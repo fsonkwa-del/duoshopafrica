@@ -14,6 +14,15 @@ import {
 import { inStore } from "./store-scope";
 
 export const MAX_MEDIA_PER_PRODUCT = 8;
+const mediaParams = {
+  type: "object",
+  required: ["storeId", "productId", "mediaId"],
+  properties: {
+    storeId: { type: "string", format: "uuid" },
+    productId: { type: "string", format: "uuid" },
+    mediaId: { type: "string", format: "uuid" },
+  },
+} as const;
 const UPLOAD_TTL_SECONDS = 300;
 const uuid = { type: "string", format: "uuid" } as const;
 // Texte alternatif obligatoire dans les deux langues (accessibilité, lecteurs d'écran).
@@ -145,4 +154,90 @@ export async function mediaRoutes(
       return reply.code(201).send({ mediaId: outcome.id, upload });
     },
   );
+
+  // Retrait d'une photo, ou choix de la photo principale (position 0) : les positions restantes
+  // sont renumérotées sans trou, sous verrou du produit (deux changements ne se croisent pas).
+  for (const action of ["remove", "primary"] as const)
+    app.post(
+      `/v1/stores/:storeId/products/:productId/media/:mediaId/${action}`,
+      {
+        schema: {
+          params: mediaParams,
+          response: {
+            200: {
+              type: "object",
+              required: ["ok"],
+              properties: { ok: { const: true } },
+            },
+            401: error,
+            403: error,
+            404: error,
+            409: error,
+          },
+        },
+      },
+      async (request, reply) => {
+        if (!(await requireSameOrigin(request, reply, webOrigin))) return reply;
+        const principal = await requirePrincipal(db, request, reply);
+        if (!principal) return reply;
+        const { storeId, productId, mediaId } = request.params as {
+          storeId: string;
+          productId: string;
+          mediaId: string;
+        };
+        const result = await inStore(
+          db,
+          principal,
+          storeId,
+          "catalog:write",
+          async (
+            tx,
+            ctx,
+          ): Promise<{ code: 200 | 404 | 409; error?: string }> => {
+            const locked = await tx.$queryRaw<{ id: string }[]>`
+              SELECT id FROM "Product"
+               WHERE id = ${productId}::uuid AND "storeId" = ${storeId}::uuid
+                 FOR UPDATE`;
+            if (!locked.length) return { code: 404, error: "not_found" };
+            const media = await tx.productMedia.findMany({
+              where: { productId },
+              orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+              select: { id: true, status: true },
+            });
+            const target = media.find((m) => m.id === mediaId);
+            if (!target) return { code: 404, error: "not_found" };
+            if (action === "remove" && target.status === "PENDING")
+              return { code: 409, error: "media_processing" };
+            if (action === "primary" && target.status !== "READY")
+              return { code: 409, error: "media_not_ready" };
+            const rest = media.filter((m) => m.id !== mediaId);
+            const order = action === "primary" ? [target, ...rest] : rest;
+            if (action === "remove")
+              await tx.productMedia.delete({ where: { id: mediaId } });
+            for (const [position, m] of order.entries())
+              await tx.productMedia.update({
+                where: { id: m.id },
+                data: { position },
+              });
+            await tx.auditLog.create({
+              data: {
+                tenantId: ctx.tenantId,
+                actorId: ctx.userId,
+                action: `catalog.media.${action}`,
+                resourceId: productId,
+                requestId: request.id,
+                detail: { mediaId },
+              },
+            });
+            return { code: 200 };
+          },
+        );
+        if (!result.ok)
+          return reply.code(result.status).send({ error: result.error });
+        const outcome = result.value;
+        if (outcome.code !== 200)
+          return reply.code(outcome.code).send({ error: outcome.error });
+        return { ok: true };
+      },
+    );
 }

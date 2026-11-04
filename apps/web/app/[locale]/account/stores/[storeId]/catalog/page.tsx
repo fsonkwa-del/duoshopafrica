@@ -11,6 +11,7 @@ import { CategorySelect } from "../../../../category-nav";
 import { AccountShell, SignIn } from "../../../account-shell";
 import {
   changeCategoryAction,
+  changeMediaAction,
   changePriceAction,
   changeStatusAction,
   createProductAction,
@@ -98,6 +99,8 @@ export default async function Catalog({
       {query.ok === "saved" && <Notice>{c.saved}</Notice>}
       {query.ok === "category" && <Notice>{t.categories.changed}</Notice>}
       {query.ok === "replayed" && <Notice>{c.replayed}</Notice>}
+      {query.ok === "photoPrimary" && <Notice>{c.photos.madePrimary}</Notice>}
+      {query.ok === "photoRemoved" && <Notice>{c.photos.removed}</Notice>}
       {error && <Notice>{error}</Notice>}
 
       {catalog.data.products.length === 0 ? (
@@ -238,9 +241,54 @@ export default async function Catalog({
                 <h3>{c.photos.title}</h3>
                 {product.media.length > 0 && (
                   <ul className="photo-list">
-                    {product.media.map((m) => (
+                    {product.media.map((m, index) => (
                       <li key={m.id}>
-                        {m.altFr} — {c.photos.statuses[m.status]}
+                        {m.url && (
+                          // biome-ignore lint/performance/noImgElement: miniature déjà optimisée par le worker
+                          <img
+                            src={m.url}
+                            alt={m.altFr}
+                            width={72}
+                            height={72}
+                          />
+                        )}
+                        <span>
+                          {m.altFr} — {c.photos.statuses[m.status]}
+                          {index === 0 && m.status === "READY" && (
+                            <strong> · {c.photos.primary}</strong>
+                          )}
+                        </span>
+                        {(["primary", "remove"] as const)
+                          .filter((action) =>
+                            action === "primary"
+                              ? index > 0 && m.status === "READY"
+                              : m.status !== "PENDING",
+                          )
+                          .map((action) => (
+                            <form key={action} action={changeMediaAction}>
+                              {hidden}
+                              <input
+                                type="hidden"
+                                name="productId"
+                                value={product.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="mediaId"
+                                value={m.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="action"
+                                value={action}
+                              />
+                              <button type="submit" className="link-button">
+                                {action === "primary"
+                                  ? c.photos.makePrimary
+                                  : c.photos.remove}
+                              </button>
+                            </form>
+                          ))}
                       </li>
                     ))}
                   </ul>

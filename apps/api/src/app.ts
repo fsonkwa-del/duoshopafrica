@@ -142,7 +142,11 @@ export async function createApp({
   if (db) {
     await app.register(accountRoutes, { db, webOrigin });
     await app.register(merchantRoutes, { db, webOrigin });
-    await app.register(catalogRoutes, { db, webOrigin });
+    await app.register(catalogRoutes, {
+      db,
+      webOrigin,
+      ...(mediaBaseUrl ? { mediaBaseUrl } : {}),
+    });
     await app.register(storefrontRoutes, {
       db,
       ...(mediaBaseUrl ? { mediaBaseUrl } : {}),

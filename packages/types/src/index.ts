@@ -95,6 +95,8 @@ export interface ProductDTO {
     status: "PENDING" | "READY" | "REJECTED";
     rejectReason: string | null;
     altFr: string;
+    // Miniature publique (photos publiées uniquement).
+    url: string | null;
   }[];
 }
 // Vitrine publique : jamais de quantité exacte de stock (information concurrentielle).

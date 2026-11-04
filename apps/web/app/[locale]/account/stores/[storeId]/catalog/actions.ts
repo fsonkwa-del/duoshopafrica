@@ -2,6 +2,7 @@
 import { isLocale } from "@duoshop/i18n";
 import {
   type ApiResult,
+  changeMedia,
   changePrice,
   changeProductStatus,
   createProduct,
@@ -155,4 +156,19 @@ export async function changeCategoryAction(form: FormData) {
     categoryId || null,
   );
   finish(page, result, "category");
+}
+
+export async function changeMediaAction(form: FormData) {
+  const { page, storeId, token } = await context(form);
+  const action = field(form, "action") === "primary" ? "primary" : "remove";
+  const result = await changeMedia(
+    apiUrl,
+    token,
+    webOrigin,
+    storeId,
+    field(form, "productId"),
+    field(form, "mediaId"),
+    action,
+  );
+  finish(page, result, action === "primary" ? "photoPrimary" : "photoRemoved");
 }

@@ -323,6 +323,21 @@ export const requestMediaUpload = (
     sessionToken,
     { origin, body },
   );
+export const changeMedia = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  productId: string,
+  mediaId: string,
+  action: "remove" | "primary",
+) =>
+  authorized<{ ok: true }>(
+    baseUrl,
+    `/v1/stores/${store(storeId)}/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(mediaId)}/${action}`,
+    sessionToken,
+    { origin, body: {} },
+  );
 export const getCheckout = (baseUrl: string, shopper: string | Shopper) =>
   authorized<{
     cart: CartDTO;

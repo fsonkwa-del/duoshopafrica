@@ -714,6 +714,11 @@ export const messages = {
           READY: "Publiée",
           REJECTED: "Refusée",
         },
+        primary: "Photo principale",
+        makePrimary: "Mettre en photo principale",
+        remove: "Supprimer",
+        madePrimary: "Photo principale modifiée.",
+        removed: "Photo supprimée.",
       },
       errors: {
         sku_taken: "Cette référence (SKU) existe déjà dans votre organisation.",
@@ -728,6 +733,10 @@ export const messages = {
           "Stock insuffisant : impossible de descendre sous les quantités réservées.",
         idempotency_conflict:
           "Ce formulaire a déjà servi pour une autre quantité. Rechargez la page.",
+        media_processing:
+          "Cette photo est encore en vérification : réessayez dans une minute.",
+        media_not_ready:
+          "Seule une photo publiée peut devenir la photo principale.",
         forbidden: "Votre rôle ne permet pas cette action.",
         store_unavailable: "Boutique suspendue : aucune modification possible.",
         unknown: "L'opération n'a pas pu être enregistrée.",
@@ -1518,6 +1527,11 @@ export const messages = {
           READY: "Published",
           REJECTED: "Rejected",
         },
+        primary: "Main photo",
+        makePrimary: "Make main photo",
+        remove: "Remove",
+        madePrimary: "Main photo changed.",
+        removed: "Photo removed.",
       },
       errors: {
         sku_taken: "This reference (SKU) already exists in your organisation.",
@@ -1531,6 +1545,9 @@ export const messages = {
           "Not enough stock: you cannot go below reserved quantities.",
         idempotency_conflict:
           "This form was already used for another quantity. Reload the page.",
+        media_processing:
+          "This photo is still being checked: try again in a minute.",
+        media_not_ready: "Only a published photo can become the main photo.",
         forbidden: "Your role does not allow this action.",
         store_unavailable: "Store suspended: no changes possible.",
         unknown: "The operation could not be recorded.",
