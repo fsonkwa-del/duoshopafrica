@@ -114,7 +114,7 @@ export const messages = {
       name: "Nom de la boutique",
       slug: "Adresse de la boutique",
       slugHint:
-        "3 à 40 caractères : lettres minuscules sans accent, chiffres et tirets. Exemple : pagnes-awa.",
+        "3 à 40 caractères. Elle est mise en forme automatiquement : « Pagnes Awa 2 » devient pagnes-awa-2.",
       submit: "Créer la boutique",
       next: "Boutique créée. Étape suivante : envoyez votre demande de vérification ci-dessous.",
       errors: {
@@ -947,7 +947,7 @@ export const messages = {
       name: "Store name",
       slug: "Store address",
       slugHint:
-        "3 to 40 characters: lowercase letters without accents, digits and hyphens. Example: awa-fabrics.",
+        "3 to 40 characters. It is formatted automatically: “Awa Fabrics 2” becomes awa-fabrics-2.",
       submit: "Create the store",
       next: "Store created. Next step: send your verification request below.",
       errors: {

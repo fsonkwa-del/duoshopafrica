@@ -5,6 +5,7 @@ import {
   canSubmitVerification,
   DECISION_REASON_MIN_LENGTH,
   type MerchantDecision,
+  toStoreSlug,
 } from "@duoshop/domain";
 import type {
   AuditEntryDTO,
@@ -80,7 +81,7 @@ export async function merchantRoutes(
         { userId: principal.userId },
         (tx) =>
           tx.$queryRaw<{ outcome: string; store_id: string | null }[]>`
-          SELECT * FROM open_store(${body.name}, ${body.slug.trim().toLowerCase()}, ${request.id})`,
+          SELECT * FROM open_store(${body.name}, ${toStoreSlug(body.slug)}, ${request.id})`,
       );
       if (row?.outcome === "created" && row.store_id)
         return reply.code(201).send({ id: row.store_id });

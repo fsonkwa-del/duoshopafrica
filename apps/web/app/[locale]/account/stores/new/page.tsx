@@ -47,7 +47,6 @@ export default async function OpenStorePage({
             required
             minLength={3}
             maxLength={40}
-            pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]"
             autoCapitalize="none"
             spellCheck={false}
             aria-describedby="slug-hint"

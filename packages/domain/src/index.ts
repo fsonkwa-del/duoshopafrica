@@ -352,3 +352,14 @@ export function commissionReversal(
   const reversal = commissionMinor(refund, basisPoints);
   return reversal > remainingCommission ? remainingCommission : reversal;
 }
+
+// Adresse de boutique saisie librement (« Bonamoussadi 2 ») -> forme canonique (« bonamoussadi-2 ») :
+// minuscules, accents retirés, espaces et ponctuation remplacés par un tiret unique.
+export function toStoreSlug(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}

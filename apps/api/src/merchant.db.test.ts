@@ -423,15 +423,7 @@ describe("a signed-in user opens a store", () => {
 
   test("refuses malformed or reserved addresses", async () => {
     const u = await user();
-    for (const bad of [
-      "ab",
-      "bad--slug",
-      "-start",
-      "end-",
-      "demo-shop",
-      "accentué",
-      "a b c",
-    ])
+    for (const bad of ["ab", "a!", "!!!", "demo-shop", "Démo Shop", "--"])
       assert.equal(
         (await open(u.token, { name: "Awa", slug: bad })).statusCode,
         400,
@@ -441,6 +433,18 @@ describe("a signed-in user opens a store", () => {
       (await open(u.token, { name: "A", slug: slug() })).statusCode,
       400,
     );
+  });
+
+  test("a free-form address is stored in its canonical form", async () => {
+    const u = await user();
+    const id = randomUUID().slice(0, 8);
+    const response = await open(u.token, {
+      name: "iNova Tech 2",
+      slug: `Test Élan ${id}`,
+    });
+    assert.equal(response.statusCode, 201);
+    const created = await track(response.json().id);
+    assert.equal(created.slug, `test-elan-${id}`);
   });
 
   test("an address belongs to one store, even under concurrent requests", async () => {

@@ -21,6 +21,7 @@ import {
   phoneMatchesPrefixes,
   roundCoordinate,
   toSearchQuery,
+  toStoreSlug,
 } from "./index";
 
 const membership: Membership = {
@@ -418,5 +419,15 @@ describe("claims", () => {
   it("reverses commission at the original rate, never more than taken", () => {
     expect(commissionReversal(12500n, 500, 1150n)).toBe(625n);
     expect(commissionReversal(23000n, 500, 1000n)).toBe(1000n);
+  });
+});
+
+describe("toStoreSlug", () => {
+  it("turns a free-form address into the canonical form", () => {
+    expect(toStoreSlug("Bonamoussadi 2")).toBe("bonamoussadi-2");
+    expect(toStoreSlug("  Pagnes d'Awa — Akwa ")).toBe("pagnes-d-awa-akwa");
+    expect(toStoreSlug("Épicerie_Élégante")).toBe("epicerie-elegante");
+    expect(toStoreSlug("déjà--valide")).toBe("deja-valide");
+    expect(toStoreSlug("!!!")).toBe("");
   });
 });
