@@ -122,6 +122,7 @@ export default async function StorePage({
         <h2 id="verification">{v.title}</h2>
         {outcome === "submitted" && <Notice>{v.submitted}</Notice>}
         {outcome === "failed" && <Notice>{v.failed}</Notice>}
+        {outcome === "invalid_phone" && <Notice>{v.invalidPhone}</Notice>}
         <p>
           <strong>{v.statuses[status]}</strong>
         </p>
@@ -135,6 +136,62 @@ export default async function StorePage({
             <p>{v.intro}</p>
             <input type="hidden" name="locale" value={locale} />
             <input type="hidden" name="storeId" value={store.id} />
+            <fieldset className="stack">
+              <legend>{v.owner}</legend>
+              <label>
+                {v.ownerName}
+                <input
+                  name="ownerName"
+                  required
+                  minLength={2}
+                  maxLength={120}
+                  autoComplete="name"
+                />
+              </label>
+              <label>
+                {v.ownerPhone}
+                <input
+                  name="ownerPhone"
+                  type="tel"
+                  required
+                  minLength={9}
+                  maxLength={20}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="6XX XX XX XX"
+                />
+              </label>
+              <label>
+                {v.city}
+                <input
+                  name="city"
+                  required
+                  minLength={2}
+                  maxLength={80}
+                  defaultValue="Douala"
+                  autoComplete="address-level2"
+                />
+              </label>
+              <label>
+                {v.district}
+                <input name="district" required minLength={2} maxLength={80} />
+              </label>
+            </fieldset>
+            <label>
+              {v.businessType}
+              <select name="businessType" required defaultValue="">
+                <option value="" disabled>
+                  {v.choose}
+                </option>
+                {(["INDIVIDUAL", "SOLE_PROPRIETOR", "COMPANY"] as const).map(
+                  (type) => (
+                    <option key={type} value={type}>
+                      {v.businessTypes[type]}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
             <label>
               {v.legalName}
               <input

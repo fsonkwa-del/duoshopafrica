@@ -5,12 +5,14 @@ import {
   canSubmitVerification,
   DECISION_REASON_MIN_LENGTH,
   type MerchantDecision,
+  normalizeCameroonPhone,
   toStoreSlug,
 } from "@duoshop/domain";
 import type {
   AuditEntryDTO,
   VerificationQueueItemDTO,
   VerificationStatusDTO,
+  VerificationSubmissionDTO,
 } from "@duoshop/types";
 import type { FastifyInstance } from "fastify";
 import {
@@ -101,8 +103,22 @@ export async function merchantRoutes(
         body: {
           type: "object",
           additionalProperties: false,
-          required: ["legalName"],
+          required: [
+            "businessType",
+            "ownerName",
+            "ownerPhone",
+            "city",
+            "district",
+            "legalName",
+          ],
           properties: {
+            businessType: {
+              enum: ["INDIVIDUAL", "SOLE_PROPRIETOR", "COMPANY"],
+            },
+            ownerName: { type: "string", minLength: 2, maxLength: 120 },
+            ownerPhone: { type: "string", minLength: 9, maxLength: 20 },
+            city: { type: "string", minLength: 2, maxLength: 80 },
+            district: { type: "string", minLength: 2, maxLength: 80 },
             legalName: { type: "string", minLength: 2, maxLength: 160 },
             registrationNumber: {
               type: "string",
@@ -117,6 +133,7 @@ export async function merchantRoutes(
             required: ["status"],
             properties: { status: { const: "SUBMITTED" } },
           },
+          400: error,
           401: error,
           403: error,
           404: error,
@@ -129,12 +146,24 @@ export async function merchantRoutes(
       const principal = await requirePrincipal(db, request, reply);
       if (!principal) return reply;
       const { storeId } = request.params as { storeId: string };
-      const body = request.body as {
-        legalName: string;
-        registrationNumber?: string;
-      };
+      const body = request.body as VerificationSubmissionDTO;
       const legalName = body.legalName.trim();
       const registrationNumber = body.registrationNumber?.trim() || null;
+      const ownerPhone = normalizeCameroonPhone(body.ownerPhone);
+      if (!ownerPhone) return reply.code(400).send({ error: "invalid_phone" });
+      const owner = {
+        businessType: body.businessType,
+        ownerName: body.ownerName.trim(),
+        ownerPhone,
+        city: body.city.trim(),
+        district: body.district.trim(),
+      };
+      if (
+        owner.ownerName.length < 2 ||
+        owner.city.length < 2 ||
+        owner.district.length < 2
+      )
+        return reply.code(400).send({ error: "invalid_request" });
       let outcome: { status: 200 | 403 | 404 | 409; error?: string };
       try {
         outcome = await asRuntime(
@@ -179,6 +208,7 @@ export async function merchantRoutes(
               status: "SUBMITTED" as const,
               legalName,
               registrationNumber,
+              ...owner,
               submittedAt: new Date(),
               decisionReason: null,
               reviewedBy: null,
@@ -252,6 +282,11 @@ export async function merchantRoutes(
               status: true,
               legalName: true,
               registrationNumber: true,
+              businessType: true,
+              ownerName: true,
+              ownerPhone: true,
+              city: true,
+              district: true,
               submittedAt: true,
               version: true,
               store: { select: { name: true, slug: true } },
@@ -265,6 +300,11 @@ export async function merchantRoutes(
         status: row.status,
         legalName: row.legalName,
         registrationNumber: row.registrationNumber,
+        businessType: row.businessType,
+        ownerName: row.ownerName,
+        ownerPhone: row.ownerPhone,
+        city: row.city,
+        district: row.district,
         submittedAt: row.submittedAt?.toISOString() ?? null,
         version: row.version,
       }));

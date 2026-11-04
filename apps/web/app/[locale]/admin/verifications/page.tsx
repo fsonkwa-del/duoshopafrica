@@ -84,6 +84,22 @@ export default async function Verifications({
             <li key={item.storeId} className="panel">
               <h2>{item.storeName}</h2>
               <dl className="facts">
+                <dt>{a.owner}</dt>
+                <dd>{item.ownerName ?? "—"}</dd>
+                <dt>{a.ownerPhone}</dt>
+                <dd>{item.ownerPhone ?? "—"}</dd>
+                <dt>{a.location}</dt>
+                <dd>
+                  {item.city && item.district
+                    ? `${item.district}, ${item.city}`
+                    : "—"}
+                </dd>
+                <dt>{a.businessType}</dt>
+                <dd>
+                  {item.businessType
+                    ? t.verification.businessTypes[item.businessType]
+                    : "—"}
+                </dd>
                 <dt>{a.legalName}</dt>
                 <dd>{item.legalName ?? "—"}</dd>
                 <dt>{a.registrationNumber}</dt>

@@ -46,6 +46,16 @@ export type MerchantDecisionDTO =
   | "REJECT"
   | "SUSPEND"
   | "REINSTATE";
+export type BusinessTypeDTO = "INDIVIDUAL" | "SOLE_PROPRIETOR" | "COMPANY";
+export interface VerificationSubmissionDTO {
+  businessType: BusinessTypeDTO;
+  ownerName: string;
+  ownerPhone: string;
+  city: string;
+  district: string;
+  legalName: string;
+  registrationNumber?: string;
+}
 export interface VerificationQueueItemDTO {
   storeId: string;
   storeName: string;
@@ -53,6 +63,11 @@ export interface VerificationQueueItemDTO {
   status: VerificationStatusDTO;
   legalName: string | null;
   registrationNumber: string | null;
+  businessType: BusinessTypeDTO | null;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  city: string | null;
+  district: string | null;
   submittedAt: string | null;
   version: number;
 }

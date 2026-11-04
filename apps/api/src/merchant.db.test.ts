@@ -68,13 +68,19 @@ const headers = (token: string, origin: string | null = webOrigin) => ({
   cookie: `${SESSION_COOKIE}=${token}`,
   ...(origin ? { origin } : {}),
 });
+const declaration = {
+  businessType: "COMPANY",
+  ownerName: "Awa Ngono",
+  ownerPhone: "6 77 12 34 56",
+  city: "Douala",
+  district: "Akwa",
+  legalName: "Awa Commerce SARL",
+  registrationNumber: "RC/DLA/2026/B/123",
+};
 const submit = (
   token: string,
   storeId: string,
-  payload: object = {
-    legalName: "Awa Commerce SARL",
-    registrationNumber: "RC/DLA/2026/B/123",
-  },
+  payload: object = declaration,
   origin: string | null = webOrigin,
 ) =>
   app.inject({
@@ -165,11 +171,21 @@ describe("seller submits a verification request", () => {
 
   test("rejects malformed declarations", async () => {
     for (const payload of [
-      { legalName: "A" },
-      { legalName: "Awa Commerce", registrationNumber: "<script>" },
-      { legalName: "Awa Commerce", extra: true },
+      { ...declaration, legalName: "A" },
+      { ...declaration, registrationNumber: "<script>" },
+      { ...declaration, extra: true },
+      { ...declaration, businessType: "NGO" },
+      { ...declaration, ownerName: "   " },
+      { ...declaration, district: undefined },
+      { legalName: "Awa Commerce" },
     ])
       assert.equal((await submit(as.owner, store.p, payload)).statusCode, 400);
+    const phone = await submit(as.owner, store.p, {
+      ...declaration,
+      ownerPhone: "+33 6 12 34 56 78",
+    });
+    assert.equal(phone.statusCode, 400);
+    assert.deepEqual(phone.json(), { error: "invalid_phone" });
   });
 
   test("submits once, is audited and visible to the owner", async () => {
@@ -204,6 +220,11 @@ describe("platform review queue", () => {
       .json()
       .items.find((i: { storeId: string }) => i.storeId === store.p);
     assert.equal(item?.legalName, "Awa Commerce SARL");
+    // Téléphone enregistré sous sa forme internationale ; propriétaire visible pour l'examen.
+    assert.equal(item?.ownerPhone, "+237677123456");
+    assert.equal(item?.ownerName, "Awa Ngono");
+    assert.equal(item?.businessType, "COMPANY");
+    assert.equal(`${item?.district}, ${item?.city}`, "Akwa, Douala");
     assert.equal(item?.version, 0);
   });
 

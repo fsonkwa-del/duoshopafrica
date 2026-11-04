@@ -36,6 +36,7 @@ import {
   type StoreDTO,
   type VerificationQueueItemDTO,
   type VerificationStatusDTO,
+  type VerificationSubmissionDTO,
 } from "@duoshop/types";
 export async function getHealth(
   baseUrl: string,
@@ -132,7 +133,7 @@ export const submitVerification = (
   sessionToken: string,
   origin: string,
   storeId: string,
-  body: { legalName: string; registrationNumber?: string },
+  body: VerificationSubmissionDTO,
 ) =>
   authorized<{ status: "SUBMITTED" }>(
     baseUrl,

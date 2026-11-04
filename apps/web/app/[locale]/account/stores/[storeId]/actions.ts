@@ -1,6 +1,7 @@
 "use server";
 import { isLocale } from "@duoshop/i18n";
 import { submitVerification, updateFulfilment } from "@duoshop/sdk";
+import type { BusinessTypeDTO } from "@duoshop/types";
 import { redirect } from "next/navigation";
 import { apiUrl, sessionToken, webOrigin } from "../../../../../lib/session";
 
@@ -13,11 +14,19 @@ export async function sendVerification(formData: FormData) {
   const registrationNumber = String(
     formData.get("registrationNumber") ?? "",
   ).trim();
+  const text = (name: string) => String(formData.get(name) ?? "").trim();
   const result = await submitVerification(apiUrl, token, webOrigin, storeId, {
-    legalName: String(formData.get("legalName") ?? "").trim(),
+    businessType: text("businessType") as BusinessTypeDTO,
+    ownerName: text("ownerName"),
+    ownerPhone: text("ownerPhone"),
+    city: text("city"),
+    district: text("district"),
+    legalName: text("legalName"),
     ...(registrationNumber ? { registrationNumber } : {}),
   });
-  redirect(`${back}?verification=${result.ok ? "submitted" : "failed"}`);
+  redirect(
+    `${back}?verification=${result.ok ? "submitted" : result.error === "invalid_phone" ? "invalid_phone" : "failed"}`,
+  );
 }
 
 export async function saveFulfilment(formData: FormData) {

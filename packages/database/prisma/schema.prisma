@@ -46,6 +46,11 @@ enum LedgerAccount {
   COMMISSION_REVENUE
   REFUND_PAYABLE
 }
+enum BusinessType {
+  INDIVIDUAL
+  SOLE_PROPRIETOR
+  COMPANY
+}
 enum VerificationStatus {
   PENDING
   SUBMITTED
@@ -243,6 +248,12 @@ model MerchantVerification {
   // Informations déclaratives minimales ; pièces justificatives après politique de rétention validée.
   legalName String?
   registrationNumber String?
+  // Propriétaire déclaré (exigé par l'API pour toute nouvelle demande).
+  businessType BusinessType?
+  ownerName String?
+  ownerPhone String?
+  city String?
+  district String?
   submittedAt DateTime? @db.Timestamptz(3)
   decisionReason String?
   reviewedBy String? @db.Uuid
