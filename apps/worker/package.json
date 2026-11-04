@@ -15,6 +15,7 @@
     "@aws-sdk/s3-request-presigner": "3.1152.0",
     "@duoshop/database": "workspace:*",
     "@duoshop/media": "workspace:*",
+    "@duoshop/payments": "workspace:*",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "dotenv": "17.2.3",

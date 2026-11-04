@@ -60,3 +60,16 @@ Conseil juridique local et partenaire habilité : modèle contractuel marketplac
   - `unapplied_payment` (succès non applicable) : PSP_CLEARING + ; REFUND_PAYABLE −.
 - **Équilibre** garanti par une contrainte différée à la validation de la transaction. Le runtime n'a aucun droit d'écriture ni de modification : toute correction future passera par contrepassation.
 - **Rapprochement** (`finance_report`) : balance par compte, dû par vendeur, et écarts. Écarts signalés : paiement sans écriture, commande payée sans règle, encaissé ≠ comptabilisé par jour (heure de Douala), écriture déséquilibrée. Le relevé du PSP n'est pas encore intégré (pas de PSP réel).
+
+## Fapshi (Sprint 14)
+
+Prestataire retenu pour le Cameroun (MTN Mobile Money, Orange Money, XAF), d'après docs.fapshi.com. Adaptateur `packages/payments/src/fapshi.ts`, testé contre une API simulée ; **à valider en sandbox réelle**.
+
+- **Encaissement** : lien de paiement hébergé (`POST /initiate-pay`, valable 24 h), en-têtes `apiuser`/`apikey`. Notre identifiant de paiement est transmis comme `externalId` et `userId`. Fapshi n'a **aucune idempotence** : un seul appel par tentative locale (`start_payment` garantit une seule tentative en cours). « Direct Pay » n'est pas utilisé : refusé aux plateformes multi-marchands et désactivé par défaut en live.
+- **Webhook** : URL unique par service, réglée dans le tableau de bord Fapshi (`https://<site>/v1/payments/webhooks/fapshi`). Authentifié par le secret statique `x-wh-secret` (comparaison à temps constant), qui n'est pas une signature : le corps n'est qu'un déclencheur, le statut fait foi après `GET /payment-status/{transId}`.
+- **Rapprochement** : Fapshi n'envoie qu'une notification par événement et ne la renvoie jamais. Le worker relit chaque minute les paiements Fapshi encore en attente depuis 1 à 30 minutes, et une fois tous les 15 passages ceux de moins de 25 h (`pending_provider_payments`, `reconcilePayments`). Un même statut relu deux fois donne le même événement (dédoublonné).
+- **Statuts** : SUCCESSFUL → réussi ; FAILED, EXPIRED → échoué (Fapshi ne donne jamais la cause) ; CREATED, PENDING → en attente. Pas de paiement partiel.
+- **Frais** : 3 % du montant (champ `revenue`), à intégrer au journal quand le relevé Fapshi sera rapproché.
+- **Remboursements et versements vendeurs** : pas d'API de remboursement ; tout passe par `POST /payout` depuis un **service de versement séparé**, alimenté manuellement depuis le service d'encaissement (tableau de bord), 100 à 500 000 XAF par versement, sans idempotence. Désactivé par défaut en live (demande à Fapshi). Non implémenté.
+- **Bloquant avant LIVE** : Fapshi indique ne pas accepter les « payment aggregators » (plateformes encaissant pour plusieurs marchands). Accord écrit de Fapshi sur le modèle DuoShop requis, avec validation juridique (détention des fonds pour le compte des vendeurs).
+- **Configuration** : `FAPSHI_API_USER`, `FAPSHI_API_KEY`, `FAPSHI_WEBHOOK_SECRET`, `FAPSHI_MODE` (SANDBOX par défaut). Puis créer dans l'administration un moyen de paiement « Mobile Money » lié à l'adaptateur `fapshi`.

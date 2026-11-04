@@ -67,4 +67,10 @@ export interface PaymentProvider {
     headers: Record<string, string | string[] | undefined>,
     now?: Date,
   ): WebhookVerification | Promise<WebhookVerification>;
+  // Relecture du statut chez le prestataire par sa référence (rapprochement par le worker,
+  // quand le prestataire ne renvoie pas une notification perdue). Facultatif.
+  fetchStatus?(
+    providerReference: string,
+    now?: Date,
+  ): Promise<WebhookVerification>;
 }

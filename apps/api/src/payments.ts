@@ -1,5 +1,9 @@
-import { createHash } from "node:crypto";
-import { asRuntime, type Database, type ScopedTx } from "@duoshop/database";
+import {
+  applyPaymentEvent,
+  asRuntime,
+  type Database,
+  type ScopedTx,
+} from "@duoshop/database";
 import { normalizeCameroonPhone, phoneMatchesPrefixes } from "@duoshop/domain";
 import {
   MOCK_SIGNATURE_HEADER,
@@ -25,8 +29,6 @@ import {
 import { requireStaff } from "./staff";
 
 const uuid = { type: "string", format: "uuid" } as const;
-const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const refusals = {
   400: error,
   401: error,
@@ -401,24 +403,13 @@ export async function paymentRoutes(
             .send({ error: "invalid_signature" });
         }
         const e = verified.event;
-        const payloadHash =
-          e.fingerprint ?? createHash("sha256").update(raw).digest("hex");
-        const paymentId = uuidPattern.test(e.paymentId) ? e.paymentId : null;
         // Persistance et effet dans une seule transaction ; l'ACK suit le COMMIT.
-        const [row] = await asRuntime(
-          db,
-          {},
-          (tx) =>
-            tx.$queryRaw<{ outcome: string }[]>`
-          SELECT apply_payment_event(${key}, ${e.eventId}, ${payloadHash},
-            ${JSON.stringify(e.payload)}::jsonb, ${paymentId}::uuid, ${e.providerReference},
-            ${e.status}, ${e.amountMinor}, ${e.currency}, ${e.occurredAt}, ${e.failureCode}) AS outcome`,
-        );
+        const outcome = await applyPaymentEvent(db, key, e, raw);
         request.log.info(
-          { provider: key, eventId: e.eventId, outcome: row?.outcome },
+          { provider: key, eventId: e.eventId, outcome },
           "payment webhook processed",
         );
-        return { received: true, outcome: row?.outcome };
+        return { received: true, outcome };
       },
     );
   });

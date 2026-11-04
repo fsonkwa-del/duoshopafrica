@@ -1,4 +1,5 @@
 import { CinetPayProvider } from "./cinetpay";
+import { FapshiProvider } from "./fapshi";
 import { MockPaymentProvider } from "./mock";
 import type { PaymentProvider } from "./provider";
 
@@ -31,6 +32,23 @@ export function providersFromEnv(
         siteId: env.CINETPAY_SITE_ID,
         mode,
         ...(env.CINETPAY_API_BASE ? { apiBase: env.CINETPAY_API_BASE } : {}),
+      }),
+    );
+  }
+  // Fapshi : actif seulement si identifiants et secret de webhook sont fournis. SANDBOX par
+  // défaut ; LIVE uniquement sur déclaration explicite (après validation sandbox et contrat).
+  if (env.FAPSHI_API_USER || env.FAPSHI_API_KEY) {
+    const mode = env.FAPSHI_MODE ?? "SANDBOX";
+    if (mode !== "SANDBOX" && mode !== "LIVE")
+      throw new Error("FAPSHI_MODE must be SANDBOX or LIVE");
+    providers.set(
+      "fapshi",
+      new FapshiProvider({
+        apiUser: env.FAPSHI_API_USER ?? "",
+        apiKey: env.FAPSHI_API_KEY ?? "",
+        webhookSecret: env.FAPSHI_WEBHOOK_SECRET ?? "",
+        mode,
+        ...(env.FAPSHI_API_BASE ? { apiBase: env.FAPSHI_API_BASE } : {}),
       }),
     );
   }

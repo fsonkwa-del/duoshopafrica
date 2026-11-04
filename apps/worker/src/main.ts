@@ -1,16 +1,19 @@
 import {
+  applyPaymentEvent,
   createDatabase,
   expireUnpaidOrders,
+  pendingProviderPayments,
   purgeExpiredLoginAttempts,
   purgeStaleGuestCarts,
   releaseExpiredReservations,
 } from "@duoshop/database";
 import { storageFromEnv } from "@duoshop/media";
+import { providersFromEnv, reconcilePayments } from "@duoshop/payments";
 import { processPendingMedia } from "./media-job";
 
 // Tâches réelles : purge des tentatives de connexion, libération des réservations de stock expirées,
-// traitement des photos (seulement si un stockage objet est configuré).
-// Aucun événement métier, paiement ni notification n'est traité.
+// traitement des photos (seulement si un stockage objet est configuré), rapprochement des paiements
+// en attente chez les prestataires qui le permettent.
 const PURGE_EVERY_MS = 15 * 60_000;
 const log = (fields: Record<string, unknown>) =>
   console.info(
@@ -85,6 +88,29 @@ if (!storage)
   });
 await processMedia();
 const mediaTimer = setInterval(processMedia, MEDIA_EVERY_MS);
+// Paiements en attente : récents à chaque minute, anciens (jusqu'à 25 h) un passage sur quinze.
+const providers = providersFromEnv(process.env);
+let reconcileRuns = 0;
+async function reconcile() {
+  const includeOld = reconcileRuns++ % 15 === 0;
+  try {
+    log({
+      job: "reconcile_payments",
+      ...(await reconcilePayments(
+        providers,
+        {
+          pending: (key, old) => pendingProviderPayments(db, key, old),
+          apply: (key, event) => applyPaymentEvent(db, key, event),
+        },
+        includeOld,
+      )),
+    });
+  } catch (err) {
+    log({ job: "reconcile_payments", status: "failed", error: String(err) });
+  }
+}
+await reconcile();
+const reconcileTimer = setInterval(reconcile, RELEASE_EVERY_MS);
 const timer = setInterval(purge, PURGE_EVERY_MS);
 const releaser = setInterval(releaseReservations, RELEASE_EVERY_MS);
 for (const signal of ["SIGINT", "SIGTERM"])
@@ -93,5 +119,6 @@ for (const signal of ["SIGINT", "SIGTERM"])
     clearInterval(releaser);
     clearInterval(orderTimer);
     clearInterval(mediaTimer);
+    clearInterval(reconcileTimer);
     await db.$disconnect();
   });

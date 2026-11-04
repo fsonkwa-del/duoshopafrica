@@ -14,5 +14,10 @@ export {
   purgeStaleGuestCarts,
 } from "./maintenance";
 export { completeMedia, type PendingMedia, pendingMedia } from "./media";
+export {
+  applyPaymentEvent,
+  type PaymentEventInput,
+  pendingProviderPayments,
+} from "./payments";
 export { asRuntime, type Database, enterTenant, type ScopedTx } from "./scope";
 export { hashSessionToken, issueSessionToken } from "./session";
