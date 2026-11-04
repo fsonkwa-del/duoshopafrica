@@ -45,11 +45,17 @@ export async function accountRoutes(
           200: {
             type: "object",
             additionalProperties: false,
-            required: ["id", "email", "mfa", "stores"],
+            required: ["id", "email", "mfa", "platformRole", "stores"],
             properties: {
               id: { type: "string" },
               email: { type: "string" },
               mfa: { type: "boolean" },
+              platformRole: {
+                anyOf: [
+                  { enum: ["ADMIN", "SUPPORT", "FINANCE"] },
+                  { type: "null" },
+                ],
+              },
               stores: { type: "array", items: storeSummary },
             },
           },
@@ -86,7 +92,15 @@ export async function accountRoutes(
               if (member) stores.push({ ...row, role: member.role });
             }
           }
-          return { ...user, mfa: principal.mfa, stores };
+          const [platform] = await tx.$queryRaw<
+            { role: MeDTO["platformRole"] }[]
+          >`SELECT app_platform_role() AS role`;
+          return {
+            ...user,
+            mfa: principal.mfa,
+            platformRole: platform?.role ?? null,
+            stores,
+          };
         },
       );
     },

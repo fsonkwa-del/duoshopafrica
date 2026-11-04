@@ -19,6 +19,8 @@ export interface MeDTO {
   email: string;
   // Second facteur attesté par le fournisseur d'identité pour cette session.
   mfa: boolean;
+  // Rôle plateforme actif (lu en base) : sert à afficher l'accès à l'administration.
+  platformRole: "ADMIN" | "SUPPORT" | "FINANCE" | null;
   stores: StoreSummaryDTO[];
 }
 export interface StoreDTO extends StoreSummaryDTO {

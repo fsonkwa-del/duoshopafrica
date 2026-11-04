@@ -103,6 +103,9 @@ export const messages = {
     myStores: "Mes boutiques",
     signedInAs: "Connecté avec",
     noStores: "Aucune boutique n'est rattachée à votre compte.",
+    staffAccess: "Votre compte fait partie de l'équipe DuoShop :",
+    staffMfa:
+      "reconnectez-vous avec votre double authentification pour y accéder.",
     openStore: {
       link: "Ouvrir ma boutique",
       title: "Ouvrir ma boutique",
@@ -925,6 +928,8 @@ export const messages = {
     myStores: "My stores",
     signedInAs: "Signed in as",
     noStores: "No store is linked to your account.",
+    staffAccess: "Your account is part of the DuoShop team:",
+    staffMfa: "sign in again with two-factor authentication to open it.",
     openStore: {
       link: "Open my store",
       title: "Open my store",

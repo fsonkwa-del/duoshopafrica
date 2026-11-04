@@ -174,6 +174,29 @@ describe("authenticated store access", () => {
       rival.stores.map((s: { id: string }) => s.id),
       [f.storeB],
     );
+    assert.equal(me.platformRole, null);
+  });
+
+  test("/v1/me reveals the caller's active platform role, never a revoked one", async () => {
+    const staff = await userWithSession();
+    await db.platformMember.create({
+      data: { userId: staff.user.id, role: "ADMIN" },
+    });
+    try {
+      const me = (await get("/v1/me", staff.token)).json();
+      assert.equal(me.platformRole, "ADMIN");
+      assert.equal(me.mfa, false);
+      await db.platformMember.update({
+        where: { userId: staff.user.id },
+        data: { active: false },
+      });
+      assert.equal(
+        (await get("/v1/me", staff.token)).json().platformRole,
+        null,
+      );
+    } finally {
+      await db.platformMember.deleteMany({ where: { userId: staff.user.id } });
+    }
   });
 
   test("interleaved concurrent requests on a small pool never cross tenants", async () => {

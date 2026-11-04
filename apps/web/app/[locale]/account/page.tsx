@@ -47,6 +47,17 @@ export default async function Account({
           ))}
         </ul>
       )}
+      {me.data.platformRole && (
+        <Notice>
+          {t.staffAccess}{" "}
+          <Link
+            href={`/${locale}/admin/${me.data.platformRole === "FINANCE" ? "finance" : "verifications"}`}
+          >
+            {t.admin.nav}
+          </Link>
+          {!me.data.mfa && <> — {t.staffMfa}</>}
+        </Notice>
+      )}
       <p>
         <Link className="cta" href={`/${locale}/account/stores/new`}>
           {t.openStore.link}
