@@ -103,7 +103,14 @@ test("the worker publishes clean images and rejects everything else", async () =
   assert.equal(published?.data.includes(Buffer.from("Secret device")), false);
   // La quarantaine est vidée après traitement ; rien de dangereux n'est publié.
   assert.equal(storage.quarantine.size, 0);
-  assert.equal(storage.published.size, 1);
+  // La photo et sa vignette de 480 px pour les grilles (lot 1).
+  assert.equal(storage.published.size, 2);
+  assert.equal(ready?.thumbKey, `products/${tenantId}/${good.id}-480.webp`);
+  const thumb = storage.published.get(
+    `products/${tenantId}/${good.id}-480.webp`,
+  );
+  const thumbMeta = await sharp(thumb?.data).metadata();
+  assert.deepEqual([thumbMeta.width, thumbMeta.height], [480, 270]);
 });
 
 test("a second run changes nothing", async () => {
