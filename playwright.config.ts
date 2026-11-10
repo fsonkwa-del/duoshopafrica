@@ -29,6 +29,8 @@ export default defineConfig({
     {
       command: "node dist/main.js",
       cwd: "apps/api",
+      // Journaux de l'API visibles (erreurs reprises en annotation CI en cas d'échec).
+      stdout: "pipe",
       url: "http://127.0.0.1:4000/health/ready",
       reuseExistingServer: false,
       timeout: 60_000,
