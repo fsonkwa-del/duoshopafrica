@@ -716,6 +716,8 @@ export async function orderRoutes(
             addressId: uuid,
             // Total vu par l'acheteur : s'il a changé entre-temps, rien n'est commandé.
             expectedTotalMinor: { type: "string", pattern: "^[0-9]{1,15}$" },
+            // Version des CGV acceptée (lot 2) ; exigée dès qu'une CGV est publiée.
+            cgvVersion: { type: "integer", minimum: 1 },
           },
         },
         response: { 200: anyObject, 201: anyObject, ...refusals },
@@ -730,6 +732,7 @@ export async function orderRoutes(
         deliveries: DeliveryChoice[];
         addressId?: string;
         expectedTotalMinor: string;
+        cgvVersion?: number;
       };
       const userId = principal.userId;
       const requestHash = createHash("sha256")
@@ -771,6 +774,16 @@ export async function orderRoutes(
           );
           if (quote.total.toString() !== body.expectedTotalMinor)
             throw new CheckoutRefusal("total_changed");
+          // CGV en vigueur : acceptées explicitement, version figée sur la commande (ADR 0010).
+          const [cgv] = await tx.$queryRaw<{ version: number | null }[]>`
+            SELECT current_legal_version('CGV') AS version`;
+          const cgvVersion = cgv?.version ?? null;
+          if (cgvVersion !== null) {
+            if (body.cgvVersion !== cgvVersion)
+              throw new CheckoutRefusal("cgv_acceptance_required");
+            await tx.$queryRaw`
+              SELECT record_consent('CGV', ${cgvVersion}::integer, true, 'checkout')`;
+          }
           const orderId = randomUUID();
           // Délai de paiement en vigueur (paramètre daté order.payment_window).
           const [window] = await tx.$queryRaw<{ at: Date }[]>`
@@ -803,6 +816,7 @@ export async function orderRoutes(
               idempotencyKey: body.idempotencyKey,
               requestHash,
               expiresAt,
+              cgvVersion,
               ...(a
                 ? {
                     addressSnapshot: {

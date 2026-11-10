@@ -8,7 +8,7 @@ if (process.env.NODE_ENV === "production")
 const [email, role = "ADMIN"] = process.argv.slice(2);
 if (
   !email?.endsWith("@example.invalid") ||
-  !["ADMIN", "SUPPORT", "FINANCE"].includes(role)
+  !["ADMIN", "SUPPORT", "FINANCE", "COMPLIANCE"].includes(role)
 )
   throw new Error(
     "Usage: smoke-staff <name@example.invalid> [ADMIN|SUPPORT|FINANCE]",

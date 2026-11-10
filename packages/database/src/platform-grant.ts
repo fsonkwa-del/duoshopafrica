@@ -5,9 +5,12 @@ import { createDatabase } from "./client";
 // Opération privilégiée (connexion propriétaire) : à exécuter par une personne habilitée et à tracer
 // dans le registre d'exploitation tant qu'un audit plateforme dédié n'existe pas.
 const [email, role] = process.argv.slice(2);
-if (!email || !["ADMIN", "SUPPORT", "FINANCE", "REVOKE"].includes(role ?? ""))
+if (
+  !email ||
+  !["ADMIN", "SUPPORT", "FINANCE", "COMPLIANCE", "REVOKE"].includes(role ?? "")
+)
   throw new Error(
-    "Usage: platform:grant <email> <ADMIN|SUPPORT|FINANCE|REVOKE>",
+    "Usage: platform:grant <email> <ADMIN|SUPPORT|FINANCE|COMPLIANCE|REVOKE>",
   );
 const db = createDatabase();
 try {

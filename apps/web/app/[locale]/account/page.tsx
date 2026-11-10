@@ -31,7 +31,8 @@ export default async function Account({
     <AccountShell locale={locale} path="/account" signedIn>
       <h1>{t.myStores}</h1>
       <p>
-        {t.signedInAs} <strong>{me.data.email}</strong>
+        {t.signedInAs} <strong>{me.data.email}</strong> ·{" "}
+        <Link href={`/${locale}/account/data`}>{t.privacy.dataTitle}</Link>
       </p>
       {me.data.stores.length === 0 ? (
         <Notice>{t.noStores}</Notice>
@@ -51,7 +52,13 @@ export default async function Account({
         <Notice>
           {t.staffAccess}{" "}
           <Link
-            href={`/${locale}/admin/${me.data.platformRole === "FINANCE" ? "finance" : "verifications"}`}
+            href={`/${locale}/admin/${
+              me.data.platformRole === "FINANCE"
+                ? "finance"
+                : me.data.platformRole === "COMPLIANCE"
+                  ? "privacy"
+                  : "verifications"
+            }`}
           >
             {t.admin.nav}
           </Link>

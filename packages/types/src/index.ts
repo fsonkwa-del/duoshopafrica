@@ -20,7 +20,7 @@ export interface MeDTO {
   // Second facteur attesté par le fournisseur d'identité pour cette session.
   mfa: boolean;
   // Rôle plateforme actif (lu en base) : sert à afficher l'accès à l'administration.
-  platformRole: "ADMIN" | "SUPPORT" | "FINANCE" | null;
+  platformRole: "ADMIN" | "SUPPORT" | "FINANCE" | "COMPLIANCE" | null;
   stores: StoreSummaryDTO[];
 }
 export interface StoreDTO extends StoreSummaryDTO {
@@ -449,7 +449,7 @@ export interface ParameterValueDTO {
 export interface ParameterDefinitionDTO {
   key: string;
   kind: ParameterKindDTO;
-  ownerRole: "ADMIN" | "SUPPORT" | "FINANCE";
+  ownerRole: "ADMIN" | "SUPPORT" | "FINANCE" | "COMPLIANCE";
   storeScoped: boolean;
   minValue: string | null;
   maxValue: string | null;

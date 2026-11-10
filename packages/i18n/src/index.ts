@@ -232,6 +232,10 @@ export const messages = {
         address_not_found: "Adresse introuvable.",
         address_invalid:
           "Adresse incomplète ou numéro invalide : vérifiez le téléphone, le quartier et le repère.",
+        cgv_acceptance_required:
+          "Acceptez les conditions générales de vente en vigueur pour commander.",
+        consent_required:
+          "Acceptez les conditions en vigueur (lien en haut de page) pour continuer.",
         total_changed:
           "Le total a changé : vérifiez le nouveau montant puis confirmez.",
         insufficient_stock:
@@ -679,6 +683,117 @@ export const messages = {
       archive: "Retirer",
       saved: "Adresse enregistrée.",
       invalid: "Adresse invalide : vérifiez le téléphone et le repère.",
+    },
+    privacy: {
+      kinds: {
+        CGU: "Conditions générales d'utilisation",
+        CGV: "Conditions générales de vente",
+        PRIVACY: "Politique de confidentialité",
+        MARKETING: "Communications commerciales",
+      },
+      version: "version",
+      banner: "De nouvelles conditions sont à accepter avant de continuer.",
+      review: "Les lire et les accepter",
+      consentTitle: "Conditions à accepter",
+      consentIntro:
+        "Pour continuer à utiliser votre compte, lisez et acceptez les textes ci-dessous. Vous pouvez aussi exporter vos données ou demander leur suppression depuis « Mes données ».",
+      accept: "J'ai lu et j'accepte",
+      accepted: "Merci, votre accord est enregistré.",
+      noneTitle: "Aucun texte en attente.",
+      cgvCheckbox: "J'ai lu et j'accepte les conditions générales de vente",
+      read: "lire",
+      dataTitle: "Mes données",
+      dataIntro:
+        "Vous pouvez télécharger les données que la plateforme conserve à votre sujet, gérer vos préférences et nous adresser une demande.",
+      exportJson: "Télécharger mes données (JSON)",
+      exportPdf: "Télécharger mes données (PDF)",
+      marketingTitle: "Communications commerciales",
+      marketingOn: "Vous acceptez de recevoir nos offres.",
+      marketingOff: "Vous ne recevez pas nos offres.",
+      marketingAccept: "Recevoir les offres",
+      marketingWithdraw: "Ne plus recevoir les offres",
+      marketingNone: "Aucun texte de consentement commercial n'est publié.",
+      requestTitle: "Faire une demande",
+      requestKind: "Type de demande",
+      requestKinds: {
+        RECTIFICATION: "Corriger une information",
+        ERASURE: "Supprimer mon compte et mes données",
+        OTHER: "Autre question sur mes données",
+      },
+      requestMessage: "Votre demande (10 caractères minimum)",
+      requestSubmit: "Envoyer la demande",
+      requestSent:
+        "Demande envoyée : l'équipe vous répondra avant l'échéance indiquée.",
+      requestsTitle: "Mes demandes",
+      due: "Réponse attendue avant le",
+      statuses: {
+        OPEN: "Reçue",
+        IN_PROGRESS: "En cours de traitement",
+        DONE: "Traitée",
+        REJECTED: "Refusée",
+      },
+      erasureNote:
+        "La suppression anonymise votre compte. Les commandes et pièces comptables sont conservées, sans votre nom ni vos coordonnées, pendant la durée imposée par la loi.",
+      historyTitle: "Historique de mes accords",
+      granted: "accepté",
+      withdrawn: "retiré",
+      legalLinks: "Informations légales",
+      notPublished: "Ce texte n'est pas encore publié.",
+      admin: {
+        requestsTitle: "Demandes sur les données",
+        requestsIntro:
+          "Demandes des personnes, triées par échéance. Une suppression s'exécute par anonymisation, refusée tant qu'une commande, une réclamation ou un remboursement est en cours.",
+        none: "Aucune demande en cours.",
+        overdue: "En retard",
+        person: "Personne",
+        start: "Prendre en charge",
+        close: "Clore",
+        reject: "Refuser",
+        erase: "Anonymiser le compte",
+        resolution: "Réponse (10 caractères minimum)",
+        legalTitle: "Documents légaux",
+        legalIntro:
+          "Textes fournis par le juriste. Une version publiée est immuable ; une nouvelle version demande à chaque utilisateur un nouvel accord.",
+        kind: "Document",
+        locale: "Langue",
+        title: "Titre",
+        body: "Texte intégral",
+        effectiveFrom: "En vigueur à partir du (heure de Douala)",
+        publish: "Publier cette version",
+        published: "Version publiée.",
+        accessTitle: "Journal des consultations",
+        accessIntro:
+          "Chaque affichage d'une donnée sensible par le personnel, avec son motif.",
+        actor: "Agent",
+        resource: "Donnée",
+        reason: "Motif",
+        revealTitle: "Contact privé du propriétaire",
+        revealReason: "Motif de la consultation (10 caractères minimum)",
+        reveal: "Afficher (consultation journalisée)",
+        saved: "Enregistré.",
+        errors: {
+          forbidden: "Action réservée à la conformité ou à l'administration.",
+          not_found: "Introuvable.",
+          already_closed: "Cette demande est déjà close.",
+          invalid_transition: "Changement de statut impossible.",
+          resolution_required:
+            "Une réponse d'au moins 10 caractères est requise.",
+          use_erasure: "Une suppression se clôt par l'anonymisation.",
+          blocked_member:
+            "La personne est membre d'une boutique ou du personnel : retirer d'abord ces accès.",
+          blocked_activity:
+            "Commande, réclamation ou remboursement en cours : anonymisation impossible pour l'instant.",
+          legal_version:
+            "Version invalide : même version dans une autre langue (même date) ou version suivante.",
+          legal_retroactive:
+            "Un texte ne peut pas prendre effet dans le passé.",
+          reason_required: "Un motif d'au moins 10 caractères est requis.",
+          mfa_required:
+            "Une session avec double authentification est requise pour cette page.",
+          invalid_request: "Informations invalides.",
+          unknown: "L'opération n'a pas abouti.",
+        },
+      },
     },
     zones: {
       adminTitle: "Quartiers de livraison",
@@ -1196,6 +1311,10 @@ export const messages = {
         address_not_found: "Address not found.",
         address_invalid:
           "Incomplete address or invalid number: check the phone, district and landmark.",
+        cgv_acceptance_required:
+          "Accept the terms of sale in force to place the order.",
+        consent_required:
+          "Accept the terms in force (link at the top of the page) to continue.",
         total_changed:
           "The total changed: review the new amount, then confirm.",
         insufficient_stock: "An item is no longer available in that quantity.",
@@ -1630,6 +1749,115 @@ export const messages = {
       archive: "Remove",
       saved: "Address saved.",
       invalid: "Invalid address: check the phone number and landmark.",
+    },
+    privacy: {
+      kinds: {
+        CGU: "Terms of use",
+        CGV: "Terms of sale",
+        PRIVACY: "Privacy policy",
+        MARKETING: "Marketing communications",
+      },
+      version: "version",
+      banner: "New terms must be accepted before you continue.",
+      review: "Read and accept them",
+      consentTitle: "Terms to accept",
+      consentIntro:
+        "To keep using your account, read and accept the texts below. You can also export your data or ask for its deletion from “My data”.",
+      accept: "I have read and accept",
+      accepted: "Thank you, your agreement is recorded.",
+      noneTitle: "Nothing to accept.",
+      cgvCheckbox: "I have read and accept the terms of sale",
+      read: "read",
+      dataTitle: "My data",
+      dataIntro:
+        "You can download the data the platform keeps about you, manage your preferences and send us a request.",
+      exportJson: "Download my data (JSON)",
+      exportPdf: "Download my data (PDF)",
+      marketingTitle: "Marketing communications",
+      marketingOn: "You agree to receive our offers.",
+      marketingOff: "You do not receive our offers.",
+      marketingAccept: "Receive offers",
+      marketingWithdraw: "Stop receiving offers",
+      marketingNone: "No marketing consent text is published.",
+      requestTitle: "Make a request",
+      requestKind: "Request type",
+      requestKinds: {
+        RECTIFICATION: "Correct some information",
+        ERASURE: "Delete my account and my data",
+        OTHER: "Other question about my data",
+      },
+      requestMessage: "Your request (at least 10 characters)",
+      requestSubmit: "Send the request",
+      requestSent:
+        "Request sent: the team will answer before the deadline shown.",
+      requestsTitle: "My requests",
+      due: "Answer expected before",
+      statuses: {
+        OPEN: "Received",
+        IN_PROGRESS: "Being handled",
+        DONE: "Handled",
+        REJECTED: "Refused",
+      },
+      erasureNote:
+        "Deletion anonymises your account. Orders and accounting records are kept, without your name or contact details, for the period required by law.",
+      historyTitle: "History of my agreements",
+      granted: "accepted",
+      withdrawn: "withdrawn",
+      legalLinks: "Legal information",
+      notPublished: "This text is not published yet.",
+      admin: {
+        requestsTitle: "Data requests",
+        requestsIntro:
+          "Requests from people, sorted by deadline. A deletion is carried out by anonymisation, refused while an order, a claim or a refund is in progress.",
+        none: "No request in progress.",
+        overdue: "Overdue",
+        person: "Person",
+        start: "Take charge",
+        close: "Close",
+        reject: "Refuse",
+        erase: "Anonymise the account",
+        resolution: "Answer (at least 10 characters)",
+        legalTitle: "Legal documents",
+        legalIntro:
+          "Texts provided by the lawyer. A published version is immutable; a new version asks every user for a new agreement.",
+        kind: "Document",
+        locale: "Language",
+        title: "Title",
+        body: "Full text",
+        effectiveFrom: "In force from (Douala time)",
+        publish: "Publish this version",
+        published: "Version published.",
+        accessTitle: "Access log",
+        accessIntro:
+          "Each display of sensitive data by staff, with its reason.",
+        actor: "Agent",
+        resource: "Data",
+        reason: "Reason",
+        revealTitle: "Owner's private contact",
+        revealReason: "Reason for viewing (at least 10 characters)",
+        reveal: "Show (logged access)",
+        saved: "Saved.",
+        errors: {
+          forbidden: "Restricted to compliance or administration.",
+          not_found: "Not found.",
+          already_closed: "This request is already closed.",
+          invalid_transition: "This status change is not possible.",
+          resolution_required:
+            "An answer of at least 10 characters is required.",
+          use_erasure: "A deletion is closed by anonymisation.",
+          blocked_member:
+            "The person belongs to a store or to staff: remove these accesses first.",
+          blocked_activity:
+            "An order, claim or refund is in progress: anonymisation is not possible yet.",
+          legal_version:
+            "Invalid version: same version in another language (same date) or the next version.",
+          legal_retroactive: "A text cannot take effect in the past.",
+          reason_required: "A reason of at least 10 characters is required.",
+          mfa_required: "A session with two-factor authentication is required.",
+          invalid_request: "Invalid information.",
+          unknown: "The operation did not complete.",
+        },
+      },
     },
     zones: {
       adminTitle: "Delivery districts",

@@ -52,7 +52,7 @@ export async function accountRoutes(
               mfa: { type: "boolean" },
               platformRole: {
                 anyOf: [
-                  { enum: ["ADMIN", "SUPPORT", "FINANCE"] },
+                  { enum: ["ADMIN", "SUPPORT", "FINANCE", "COMPLIANCE"] },
                   { type: "null" },
                 ],
               },

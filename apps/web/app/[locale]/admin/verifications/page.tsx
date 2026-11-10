@@ -9,6 +9,7 @@ import { staffError } from "../../../../lib/staff";
 import { AccountShell, SignIn } from "../../account/account-shell";
 import { AdminNav } from "../admin-nav";
 import { decide } from "./actions";
+import { RevealOwner } from "./reveal-owner";
 
 const statuses: readonly VerificationStatusDTO[] = [
   "SUBMITTED",
@@ -87,7 +88,20 @@ export default async function Verifications({
                 <dt>{a.owner}</dt>
                 <dd>{item.ownerName ?? "—"}</dd>
                 <dt>{a.ownerPhone}</dt>
-                <dd>{item.ownerPhone ?? "—"}</dd>
+                <dd>
+                  {item.ownerPhone ?? "—"}
+                  {item.ownerPhone && (
+                    <RevealOwner
+                      storeId={item.storeId}
+                      labels={{
+                        title: t.privacy.admin.revealTitle,
+                        reason: t.privacy.admin.revealReason,
+                        reveal: t.privacy.admin.reveal,
+                        error: t.privacy.admin.errors.reason_required,
+                      }}
+                    />
+                  )}
+                </dd>
                 <dt>{a.location}</dt>
                 <dd>
                   {item.city && item.district

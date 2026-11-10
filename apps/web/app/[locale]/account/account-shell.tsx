@@ -3,6 +3,7 @@ import { type Locale, messages } from "@duoshop/i18n";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ConsentBanner } from "../consent-banner";
 import { GlobeIcon } from "../icons";
 import { signOut } from "./actions";
 
@@ -52,6 +53,9 @@ export function AccountShell({
         </div>
       </header>
       <main id="main" className="shop account">
+        {signedIn && !path.startsWith("/account/consent") && (
+          <ConsentBanner locale={locale} />
+        )}
         {children}
       </main>
     </div>

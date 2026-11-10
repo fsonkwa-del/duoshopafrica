@@ -26,3 +26,16 @@ export async function purgeStaleGuestCarts(db: Database): Promise<number> {
   );
   return row?.purged ?? 0;
 }
+
+// Conservation (lot 2, ADR 0010) : durées et mode lus dans les paramètres datés. En DRY_RUN, la
+// passe compte sans rien modifier. Connexion propriétaire : la fonction n'est pas ouverte au runtime.
+export async function applyRetention(
+  db: Database,
+): Promise<{ mode: string; rules: { rule: string; affected: number }[] }> {
+  const [setting] = await db.$queryRaw<{ mode: string }[]>`
+    SELECT param_value('retention.mode') AS mode`;
+  const mode = setting?.mode === "ENFORCE" ? "ENFORCE" : "DRY_RUN";
+  const rules = await db.$queryRaw<{ rule: string; affected: number }[]>`
+    SELECT rule, affected FROM apply_retention(${mode === "ENFORCE"})`;
+  return { mode, rules };
+}

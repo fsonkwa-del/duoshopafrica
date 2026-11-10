@@ -221,7 +221,8 @@ describe("platform review queue", () => {
       .items.find((i: { storeId: string }) => i.storeId === store.p);
     assert.equal(item?.legalName, "Awa Commerce SARL");
     // Téléphone enregistré sous sa forme internationale ; propriétaire visible pour l'examen.
-    assert.equal(item?.ownerPhone, "+237677123456");
+    // Contact privé masqué dans la file ; affichage complet sur motif (privacy.db.test).
+    assert.equal(item?.ownerPhone, "••••••56");
     assert.equal(item?.ownerName, "Awa Ngono");
     assert.equal(item?.businessType, "COMPANY");
     assert.equal(`${item?.district}, ${item?.city}`, "Akwa, Douala");

@@ -724,3 +724,33 @@ Branche `compliance/lot-7-legal`, issue du lot 0.
 - `claims.db.test.ts` : route `/mediate`, refus du SUPPORT par l'alias `/decide`, échéance exposée (remise + 7 jours).
 - Tests unitaires du domaine : tarif par quartier et offre affichée.
 - Suites : lint, typecheck, 78 tests unitaires, 180 tests sur base réelle (base 19, API 159, worker 2).
+
+# Conformité — Lot 2 : droits des personnes et consentement (ADR 0010) — 10 novembre 2026
+
+Branche `compliance/lot-2-privacy`, issue du lot 7.
+
+## Livré
+
+- **Rôle COMPLIANCE.** Documents légaux versionnés et immuables, consentements en ajout seul, contrôle des consentements sur toute modification (428), CGV figées sur la commande.
+- **« Mes données ».** Export JSON et PDF, préférences commerciales, demandes avec échéance paramétrée.
+- **Traitement par le personnel.** Prise en charge, réponse, anonymisation contrôlée.
+- **Conservation quotidienne** par le worker, à blanc par défaut.
+- **Contact privé du propriétaire** masqué, affiché sur motif et journalisé.
+- **Registre des traitements** en base (8 traitements).
+- **Défauts trouvés par les tests et corrigés.**
+  - Une fois les CGU publiées, le personnel lui-même était bloqué sur ses routes d'administration : elles sont désormais exemptées (H29).
+  - Dans `publish_legal_document`, `NOT app_privacy_staff()` laissait passer un utilisateur sans rôle, car NULL n'est ni vrai ni faux : corrigé par `coalesce`.
+
+## Commandes réellement exécutées
+
+- `prisma migrate diff` : aucun écart. `pnpm db:roundtrip` : 6 migrations réversibles défaites puis réappliquées, « round trip ok (2199 schema facts) ».
+- `privacy.db.test.ts` (7 tests) :
+  - publication : SUPPORT refusé, version sautée refusée, date passée refusée, repli sur le français ;
+  - 428 avant acceptation, retrait des CGU refusé, version inconnue refusée, marketing accepté puis retiré (2 lignes) ;
+  - CGV exigées et figées sur la commande ;
+  - export JSON (en-têtes `attachment` et `private, no-store`) et PDF (`%PDF-`) ;
+  - demande de suppression : échéance de 30 jours, clôture manuelle refusée, SUPPORT ne peut pas anonymiser, anonymisation bloquée par une commande en attente puis réussie après annulation (e-mail, sessions, adresse, instantané de commande vérifiés ; consentements conservés ; ancienne session refusée) ;
+  - contact révélé seulement avec un motif, et inscrit au journal ;
+  - conservation à blanc sans modification.
+- `merchant.db.test.ts` : le téléphone du propriétaire est masqué dans la file.
+- Suites : lint, typecheck, 78 tests unitaires, 187 tests sur base réelle (base 19, API 166, worker 2).

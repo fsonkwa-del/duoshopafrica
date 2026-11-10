@@ -1431,3 +1431,11 @@ td {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Textes légaux (lot 2) : texte brut du juriste, retours à la ligne conservés. */
+.legal-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 60vh;
+  overflow-y: auto;
+}

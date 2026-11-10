@@ -1,5 +1,6 @@
 import {
   applyPaymentEvent,
+  applyRetention,
   createDatabase,
   expireUnpaidOrders,
   pendingProviderPayments,
@@ -111,6 +112,17 @@ async function reconcile() {
 }
 await reconcile();
 const reconcileTimer = setInterval(reconcile, RELEASE_EVERY_MS);
+// Conservation des données (lot 2) : une passe par jour, à blanc tant que le mode n'est pas ENFORCE.
+const RETENTION_EVERY_MS = 24 * 3600_000;
+async function retention() {
+  try {
+    log({ job: "apply_retention", ...(await applyRetention(db)) });
+  } catch (err) {
+    log({ job: "apply_retention", status: "failed", error: String(err) });
+  }
+}
+await retention();
+const retentionTimer = setInterval(retention, RETENTION_EVERY_MS);
 const timer = setInterval(purge, PURGE_EVERY_MS);
 const releaser = setInterval(releaseReservations, RELEASE_EVERY_MS);
 for (const signal of ["SIGINT", "SIGTERM"])
@@ -120,5 +132,6 @@ for (const signal of ["SIGINT", "SIGTERM"])
     clearInterval(orderTimer);
     clearInterval(mediaTimer);
     clearInterval(reconcileTimer);
+    clearInterval(retentionTimer);
     await db.$disconnect();
   });

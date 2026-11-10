@@ -10,6 +10,7 @@ export {
   type StockSnapshot,
 } from "./inventory";
 export {
+  applyRetention,
   purgeExpiredLoginAttempts,
   purgeStaleGuestCarts,
 } from "./maintenance";

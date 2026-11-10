@@ -4,6 +4,7 @@ import { getCart, getCategories, getNotifications } from "@duoshop/sdk";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { apiUrl, shopper } from "../../lib/session";
+import { ConsentBanner } from "./consent-banner";
 import {
   ArrowUpIcon,
   BellIcon,
@@ -173,11 +174,15 @@ export async function ShopShell({
         </nav>
       </header>
       <main id="main" className="shop">
+        <ConsentBanner locale={locale} />
         {children}
       </main>
       <footer className="shop-footer">
         <span>© {brand.name}</span>
         <Link href={`/${locale}/credits`}>{h.credits}</Link>
+        <Link href={`/${locale}/legal/cgu`}>{t.privacy.kinds.CGU}</Link>
+        <Link href={`/${locale}/legal/cgv`}>{t.privacy.kinds.CGV}</Link>
+        <Link href={`/${locale}/legal/privacy`}>{t.privacy.kinds.PRIVACY}</Link>
       </footer>
       <nav aria-label={h.tools} className="floating-tools">
         <Link

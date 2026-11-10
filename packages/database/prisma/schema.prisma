@@ -15,6 +15,7 @@ enum PlatformRole {
   ADMIN
   SUPPORT
   FINANCE
+  COMPLIANCE
 }
 enum ClaimStatus {
   OPEN
@@ -137,6 +138,8 @@ model User {
   id String @id @default(uuid()) @db.Uuid
   email String @unique
   createdAt DateTime @default(now()) @db.Timestamptz(3)
+  // Anonymisé (droit à l'effacement ou conservation) : plus d'e-mail ni d'identité liée.
+  anonymizedAt DateTime? @db.Timestamptz(3)
   identities Identity[]
   sessions Session[]
   memberships StoreMember[]
@@ -146,6 +149,8 @@ model User {
   orders Order[]
   payments Payment[]
   notifications Notification[]
+  consents Consent[]
+  dataRequests DataRequest[]
 }
 model PlatformMember {
   userId String @id @db.Uuid
@@ -512,6 +517,8 @@ model Order {
   idempotencyKey String
   requestHash String @db.Char(64)
   addressSnapshot Json?
+  // Version des CGV acceptée à la commande (lot 2) ; null si aucune CGV publiée.
+  cgvVersion Int?
   expiresAt DateTime @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   closedAt DateTime? @db.Timestamptz(3)
@@ -838,6 +845,7 @@ model ParameterDefinition {
   labelFr String
   labelEn String
   values RegulatoryParameter[]
+  registry DataProcessingRegistry[]
 }
 model RegulatoryParameter {
   id String @id @default(uuid()) @db.Uuid
@@ -884,4 +892,89 @@ model StoreZoneFee {
   store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
   zone DeliveryZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
   @@unique([storeId, zoneId])
+}
+
+// ---------- Données personnelles (lot 2, ADR 0010) ----------
+enum LegalDocumentKind {
+  CGU
+  CGV
+  PRIVACY
+  MARKETING
+}
+enum DataRequestKind {
+  RECTIFICATION
+  ERASURE
+  OTHER
+}
+enum DataRequestStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  REJECTED
+}
+// Texte fourni par le juriste, immuable ; une version = un texte par langue.
+model LegalDocument {
+  id String @id @default(uuid()) @db.Uuid
+  kind LegalDocumentKind
+  version Int
+  locale String
+  title String
+  body String
+  sha256 String @db.Char(64)
+  effectiveFrom DateTime @db.Timestamptz(3)
+  publishedBy String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([kind, version, locale])
+}
+// Ajout seul : un retrait (marketing) est une nouvelle ligne.
+model Consent {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  kind LegalDocumentKind
+  version Int
+  granted Boolean
+  source String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@index([userId, kind, createdAt])
+}
+model DataRequest {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  kind DataRequestKind
+  message String
+  status DataRequestStatus @default(OPEN)
+  dueAt DateTime @db.Timestamptz(3)
+  assignedTo String? @db.Uuid
+  resolution String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  closedAt DateTime? @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@index([status, dueAt])
+  @@index([userId, createdAt])
+}
+// Consultation par le personnel d'une donnée sensible (contact privé, pièce KYC), avec motif.
+model SensitiveAccessLog {
+  id String @id @default(uuid()) @db.Uuid
+  actorId String @db.Uuid
+  resource String
+  resourceId String @db.Uuid
+  reason String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([resourceId, createdAt])
+  @@index([actorId, createdAt])
+}
+model DataProcessingRegistry {
+  key String @id
+  purposeFr String
+  purposeEn String
+  legalBasis String
+  dataCategories String
+  subjects String
+  recipients String
+  retentionParameter String?
+  retention ParameterDefinition? @relation(fields: [retentionParameter], references: [key], onDelete: Restrict)
+  storageLocation String
+  security String
+  validationStatus ParameterStatus @default(A_VALIDER)
 }

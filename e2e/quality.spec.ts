@@ -104,6 +104,8 @@ test("a buyer never reaches platform administration", async ({ browser }) => {
     "/fr/admin/finance",
     "/fr/admin/claims",
     "/fr/admin/parameters",
+    "/fr/admin/privacy",
+    "/fr/admin/access-log",
   ]) {
     await page.goto(resolve(path));
     await expect(
@@ -144,6 +146,32 @@ test("an admin sees the dated regulatory parameters and may only propose a value
   await expect(claims).toContainText("À valider");
   await expect(
     page.getByRole("button", { name: "Soumettre pour approbation" }),
+  ).toBeVisible();
+  await expectFitsScreen(page);
+});
+
+test('a signed-in person reaches "My data": export, preferences and requests', async ({
+  browser,
+}) => {
+  const context = await browser.newContext(deviceOptions());
+  await signIn(context, await session("e2e-mydata@example.invalid"));
+  const page = await context.newPage();
+  await page.goto(resolve("/fr/account"));
+  await page.getByRole("link", { name: "Mes données" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Mes données", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Télécharger mes données (PDF)" }),
+  ).toHaveAttribute("href", "/v1/me/export.pdf?lang=fr");
+  await page.getByLabel("Type de demande").selectOption("RECTIFICATION");
+  await page
+    .getByLabel(/Votre demande/)
+    .fill("Merci de corriger l'orthographe de mon nom.");
+  await page.getByRole("button", { name: "Envoyer la demande" }).click();
+  await expect(page.getByText(/Demande envoyée/)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Mes demandes" }),
   ).toBeVisible();
   await expectFitsScreen(page);
 });

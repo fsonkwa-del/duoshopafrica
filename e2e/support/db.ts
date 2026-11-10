@@ -169,6 +169,8 @@ export async function cleanup(): Promise<void> {
       DELETE FROM "Cart" WHERE "userId" = ANY(coalesce(v_u, '{}'));
       DELETE FROM "PlatformMember" WHERE "userId" = ANY(coalesce(v_u, '{}'));
       DELETE FROM "Session" WHERE "userId" = ANY(coalesce(v_u, '{}'));
+      DELETE FROM "Consent" WHERE "userId" = ANY(coalesce(v_u, '{}'));
+      DELETE FROM "DataRequest" WHERE "userId" = ANY(coalesce(v_u, '{}'));
       DELETE FROM "User" WHERE "id" = ANY(coalesce(v_u, '{}'));
     END $$;`);
 }

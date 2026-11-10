@@ -1,6 +1,6 @@
 # ADR 0010 — Droits des personnes, consentement et conservation
 
-Date : 2026-11-09. Statut : proposé (lot 2).
+Date : 2026-11-09. Statut : accepté le 2026-11-10 et livré (lot 2).
 
 ## Contexte
 
@@ -26,3 +26,26 @@ Aucun consentement n'est enregistré aujourd'hui. Il n'existe ni export, ni dema
 - Un rôle plateforme COMPLIANCE est ajouté, utilisé aussi par le lot 5.
 - Les pages d'inscription et de commande reçoivent une étape d'acceptation, avec mise à jour des E2E.
 - Les données des comptes de test existants n'ont aucun consentement : elles seront purgées avant tout lancement réel.
+
+## Mise en œuvre (10 novembre 2026)
+
+- **Migrations.** `202611190001_compliance_role` ajoute le rôle COMPLIANCE ; PostgreSQL ne retire pas une valeur d'enum, donc le retour arrière la laisse en place. `202611190002_privacy` crée `LegalDocument`, `Consent`, `DataRequest`, `SensitiveAccessLog`, `DataProcessingRegistry` (8 traitements de départ), `User.anonymizedAt` et `Order.cgvVersion`.
+- **Documents légaux.**
+  - Publication par ADMIN ou COMPLIANCE : version suivante, jamais rétroactive. Le texte est immuable et son empreinte SHA-256 est conservée.
+  - Une même version peut exister en français et en anglais ; à défaut de traduction, le français est servi.
+  - Le produit ne rédige aucun texte : sans document publié, aucun consentement n'est exigé.
+- **Consentements.**
+  - En ajout seul, par `record_consent`. Seul le marketing se retire.
+  - Contrôle dans `requirePrincipal` : toute modification renvoie 428 `consent_required` tant que les CGU et la politique de confidentialité en vigueur ne sont pas acceptées. Restent exemptés : l'acceptation elle-même, les demandes sur les données, la déconnexion et les routes du personnel (soumis à ses règles internes).
+  - Le panier des visiteurs reste ouvert.
+  - CGV : la commande exige la version en vigueur (`cgv_acceptance_required`), l'enregistre comme consentement et la fige sur la commande.
+- **« Mes données ».** Export JSON et PDF (pdfkit 0.17.2) généré à la demande, sans passer par le worker comme prévu d'abord, car le volume est faible ; préférences commerciales ; demandes avec échéance (`data_request.response_window`, 30 jours, À VALIDER) ; historique des accords.
+- **Traitement des demandes.**
+  - SUPPORT, ADMIN ou COMPLIANCE prennent en charge et clôturent avec une réponse.
+  - Une suppression ne se clôt que par `execute_erasure` (ADMIN ou COMPLIANCE), qui appelle `anonymize_user`. Celle-ci est refusée si une commande, une réclamation ou un remboursement est en cours, ou si la personne a un rôle actif.
+  - L'anonymisation efface : e-mail, identité chez le fournisseur, sessions, notifications, panier, codes de remise, coordonnées des adresses et des commandes (quartier et ville gardés), téléphone payeur.
+  - Elle conserve : commandes, écritures comptables, réclamations, consentements.
+  - **Reste à faire hors application** : supprimer le compte chez Zitadel, procédure d'exploitation à écrire.
+- **Conservation.** `apply_retention` traite les notifications, les sessions expirées et les comptes inactifs (anonymisation). Le worker l'exécute une fois par jour, à blanc tant que `retention.mode` ne vaut pas `ENFORCE`. Les durées sont des paramètres de la conformité, à valider (H9).
+- **Consultations sensibles.** Le téléphone privé du propriétaire est masqué dans la file de vérification. Il s'affiche sur motif (10 caractères minimum) via `reveal_store_owner`, et chaque affichage est inscrit dans `SensitiveAccessLog`. Ce journal est lisible par ADMIN et COMPLIANCE.
+- **Écrans.** Bannière « conditions à accepter » ; pages Conditions, Mes données, textes légaux publics (pied de page) ; case CGV au checkout. Côté personnel : Demandes sur les données, Documents légaux, Journal des consultations, affichage motivé dans Vérifications.

@@ -104,7 +104,7 @@ export function commissionMinor(amount: bigint, basisPoints: number): bigint {
 
 // Personnel plateforme : toute permission exige une session dont le second facteur est attesté.
 // FINANCE : fonction financière séparée des opérations (cahier : séparer opérationnel/finance/sécurité).
-export type PlatformRole = "ADMIN" | "SUPPORT" | "FINANCE";
+export type PlatformRole = "ADMIN" | "SUPPORT" | "FINANCE" | "COMPLIANCE";
 export type PlatformPermission =
   | "merchant:review"
   | "merchant:decide"
@@ -117,7 +117,12 @@ export type PlatformPermission =
   | "taxonomy:manage"
   | "parameter:read"
   | "parameter:propose"
-  | "parameter:decide";
+  | "parameter:decide"
+  | "privacy:review"
+  | "privacy:erase"
+  | "legal:publish"
+  | "access_log:read"
+  | "contact:reveal";
 const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
   ADMIN: [
     "merchant:review",
@@ -131,9 +136,20 @@ const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
     "parameter:read",
     "parameter:propose",
     "parameter:decide",
+    "privacy:review",
+    "privacy:erase",
+    "legal:publish",
+    "access_log:read",
+    "contact:reveal",
   ],
   // Le support instruit les litiges ; l'avis de médiation (décision d'argent) revient à l'ADMIN.
-  SUPPORT: ["merchant:review", "payment:review", "claim:review"],
+  SUPPORT: [
+    "merchant:review",
+    "payment:review",
+    "claim:review",
+    "privacy:review",
+    "contact:reveal",
+  ],
   // Les règles de commission ne sont modifiables que par la finance ; l'admin les consulte.
   FINANCE: [
     "payment:review",
@@ -142,6 +158,18 @@ const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
     "parameter:read",
     "parameter:propose",
     "parameter:decide",
+  ],
+  // Conformité (lot 2) : données personnelles, documents légaux, journal des consultations ;
+  // propose ses paramètres (conservation), l'approbation revient à ADMIN ou FINANCE.
+  COMPLIANCE: [
+    "merchant:review",
+    "parameter:read",
+    "parameter:propose",
+    "privacy:review",
+    "privacy:erase",
+    "legal:publish",
+    "access_log:read",
+    "contact:reveal",
   ],
 };
 export function canPlatform(input: {

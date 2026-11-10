@@ -45,6 +45,9 @@ export async function placeOrderAction(form: FormData) {
     deliveries,
     ...(addressId ? { addressId } : {}),
     expectedTotalMinor: String(form.get("expectedTotalMinor") ?? ""),
+    ...(form.get("cgvVersion")
+      ? { cgvVersion: Number(form.get("cgvVersion")) }
+      : {}),
   });
   if (result.ok) redirect(`/${locale}/orders/${result.data.id}?placed=1`);
   const separator = back.includes("?") ? "&" : "?";

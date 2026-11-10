@@ -54,8 +54,8 @@ export async function getHealth(
 }
 
 // Résultat explicite : les refus métier sont des issues attendues, pas des exceptions.
-type Refusal = 400 | 401 | 403 | 404 | 409 | 429;
-const refusals: readonly number[] = [400, 401, 403, 404, 409, 429];
+type Refusal = 400 | 401 | 403 | 404 | 409 | 428 | 429;
+const refusals: readonly number[] = [400, 401, 403, 404, 409, 428, 429];
 export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; status: Refusal; error?: string };
@@ -366,7 +366,11 @@ export const placeOrder = (
   baseUrl: string,
   sessionToken: string,
   origin: string,
-  body: CheckoutChoice & { idempotencyKey: string; expectedTotalMinor: string },
+  body: CheckoutChoice & {
+    idempotencyKey: string;
+    expectedTotalMinor: string;
+    cgvVersion?: number;
+  },
 ) =>
   authorized<OrderDTO>(baseUrl, "/v1/orders", sessionToken, { origin, body });
 export const listOrders = (baseUrl: string, sessionToken: string) =>
@@ -688,6 +692,171 @@ export const updateZoneFees = (
     sessionToken,
     { origin, body: { fees } },
   );
+// ---------- Données personnelles (lot 2) ----------
+export type LegalKind = "CGU" | "CGV" | "PRIVACY" | "MARKETING";
+export interface LegalTextDTO {
+  kind: LegalKind;
+  version: number;
+  locale: string;
+  title: string;
+  body: string;
+  sha256: string;
+  effectiveFrom: string;
+}
+export interface MyPrivacyDTO {
+  pending: { kind: LegalKind; version: number }[];
+  marketing: { version: number | null; granted: boolean };
+  consents: {
+    kind: LegalKind;
+    version: number;
+    granted: boolean;
+    source: string;
+    createdAt: string;
+  }[];
+  requests: {
+    id: string;
+    kind: "RECTIFICATION" | "ERASURE" | "OTHER";
+    message: string;
+    status: "OPEN" | "IN_PROGRESS" | "DONE" | "REJECTED";
+    dueAt: string;
+    resolution: string | null;
+    createdAt: string;
+    closedAt: string | null;
+  }[];
+}
+export interface AdminDataRequestDTO {
+  id: string;
+  userId: string;
+  kind: "RECTIFICATION" | "ERASURE" | "OTHER";
+  message: string;
+  status: "OPEN" | "IN_PROGRESS" | "DONE" | "REJECTED";
+  dueAt: string;
+  overdue: boolean;
+  resolution: string | null;
+  createdAt: string;
+  closedAt: string | null;
+}
+export async function getLegalTexts(
+  baseUrl: string,
+  locale: "fr" | "en",
+): Promise<LegalTextDTO[]> {
+  const response = await fetch(
+    new URL(`/v1/legal/current?${new URLSearchParams({ locale })}`, baseUrl),
+    { cache: "no-store" },
+  );
+  if (!response.ok)
+    throw new Error(`Legal request failed with status ${response.status}`);
+  return ((await response.json()) as { documents: LegalTextDTO[] }).documents;
+}
+export const getMyPrivacy = (baseUrl: string, sessionToken: string) =>
+  authorized<MyPrivacyDTO>(baseUrl, "/v1/me/privacy", sessionToken);
+export const recordConsent = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: { kind: LegalKind; version: number; granted: boolean; source: string },
+) =>
+  authorized<{ outcome: string }>(baseUrl, "/v1/me/consents", sessionToken, {
+    origin,
+    body,
+  });
+export const openDataRequest = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: { kind: string; message: string },
+) =>
+  authorized<{ id: string }>(baseUrl, "/v1/me/data-requests", sessionToken, {
+    origin,
+    body,
+  });
+export const getDataRequests = (baseUrl: string, sessionToken: string) =>
+  authorized<{ canErase: boolean; requests: AdminDataRequestDTO[] }>(
+    baseUrl,
+    "/v1/admin/data-requests",
+    sessionToken,
+  );
+export const updateDataRequest = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  requestId: string,
+  body: { status: string; resolution?: string },
+) =>
+  authorized<{ outcome: string }>(
+    baseUrl,
+    `/v1/admin/data-requests/${encodeURIComponent(requestId)}`,
+    sessionToken,
+    { origin, body },
+  );
+export const eraseDataRequest = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  requestId: string,
+  resolution: string,
+) =>
+  authorized<{ outcome: string }>(
+    baseUrl,
+    `/v1/admin/data-requests/${encodeURIComponent(requestId)}/erase`,
+    sessionToken,
+    { origin, body: { resolution } },
+  );
+export const getLegalDocuments = (baseUrl: string, sessionToken: string) =>
+  authorized<{
+    documents: {
+      id: string;
+      kind: LegalKind;
+      version: number;
+      locale: string;
+      title: string;
+      sha256: string;
+      effectiveFrom: string;
+    }[];
+  }>(baseUrl, "/v1/admin/legal-documents", sessionToken);
+export const publishLegalDocument = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: {
+    kind: LegalKind;
+    version: number;
+    locale: string;
+    title: string;
+    body: string;
+    effectiveFrom: string;
+  },
+) =>
+  authorized<{ id: string }>(
+    baseUrl,
+    "/v1/admin/legal-documents",
+    sessionToken,
+    { origin, body },
+  );
+export const revealOwnerContact = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  reason: string,
+) =>
+  authorized<{ ownerName: string | null; ownerPhone: string | null }>(
+    baseUrl,
+    `/v1/admin/stores/${encodeURIComponent(storeId)}/owner-contact`,
+    sessionToken,
+    { origin, body: { reason } },
+  );
+export const getAccessLog = (baseUrl: string, sessionToken: string) =>
+  authorized<{
+    entries: {
+      id: string;
+      actorId: string;
+      resource: string;
+      resourceId: string;
+      reason: string;
+      createdAt: string;
+    }[];
+  }>(baseUrl, "/v1/admin/access-log", sessionToken);
 export const getParameters = (baseUrl: string, sessionToken: string) =>
   authorized<ParametersDTO>(baseUrl, "/v1/admin/parameters", sessionToken);
 export const proposeParameter = (

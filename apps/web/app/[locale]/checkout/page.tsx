@@ -4,6 +4,7 @@ import {
   getCart,
   getCheckout,
   getDeliveryZones,
+  getLegalTexts,
   quoteCheckout,
 } from "@duoshop/sdk";
 import type { DeliveryMethodDTO, MoneyDTO } from "@duoshop/types";
@@ -32,6 +33,10 @@ export default async function Checkout({
   const t = messages[locale];
   const c = t.checkout;
   const credentials = await shopper();
+  // CGV en vigueur (lot 2) : acceptation explicite, version transmise avec la commande.
+  const cgv = (await getLegalTexts(apiUrl, locale)).find(
+    (d) => d.kind === "CGV",
+  );
   const token = credentials.session;
   // La connexion fusionne le panier visiteur dans celui du compte (côté API).
   const data = token ? await getCheckout(apiUrl, credentials) : null;
@@ -231,6 +236,23 @@ export default async function Checkout({
               name="expectedTotalMinor"
               value={quote.data.total.amountMinor}
             />
+            {cgv && (
+              <label className="variant-choice">
+                <input
+                  type="checkbox"
+                  name="cgvVersion"
+                  value={cgv.version}
+                  required
+                />
+                <span>
+                  {t.privacy.cgvCheckbox} ({t.privacy.version} {cgv.version},{" "}
+                  <Link href={`/${locale}/legal/cgv`} target="_blank">
+                    {t.privacy.read}
+                  </Link>
+                  )
+                </span>
+              </label>
+            )}
             <button type="submit" className="cta">
               {c.confirm}
             </button>

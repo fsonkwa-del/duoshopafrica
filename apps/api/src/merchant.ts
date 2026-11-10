@@ -302,7 +302,8 @@ export async function merchantRoutes(
         registrationNumber: row.registrationNumber,
         businessType: row.businessType,
         ownerName: row.ownerName,
-        ownerPhone: row.ownerPhone,
+        // Contact privé masqué : affichage complet sur motif, journalisé (lot 2, ADR 0010).
+        ownerPhone: row.ownerPhone ? `••••••${row.ownerPhone.slice(-2)}` : null,
         city: row.city,
         district: row.district,
         submittedAt: row.submittedAt?.toISOString() ?? null,
