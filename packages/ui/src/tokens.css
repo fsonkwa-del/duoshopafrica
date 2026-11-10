@@ -1416,3 +1416,18 @@ td {
   border-top: 1px solid #e5e5e5;
   font-size: 0.9rem;
 }
+
+/* Mentions légales du vendeur (ADR 0015) : libellé puis valeur, repliées sous un résumé. */
+.legal-mentions {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 0.25rem 0.75rem;
+  margin: 0.5rem 0 0;
+}
+.legal-mentions dt {
+  font-weight: 600;
+}
+.legal-mentions dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -378,6 +378,14 @@ describe("opening a claim", () => {
     ).json().sellers[0];
     assert.equal(view.claimable, false);
     assert.equal(view.claims[0].status, "OPEN");
+    // Échéance = remise + délai de réclamation en vigueur à la remise (7 jours, paramètre daté).
+    const so = await db.sellerOrder.findUniqueOrThrow({
+      where: { id: f.main.sellerOrderId },
+    });
+    assert.equal(
+      view.claimDeadline,
+      new Date((so.deliveredAt?.getTime() ?? 0) + 7 * 86400_000).toISOString(),
+    );
     const e = await earnings();
     const line = e.lines.find(
       (l: { sellerOrderId: string }) =>
@@ -445,9 +453,10 @@ describe("answering and arbitrating", () => {
       ).statusCode,
       403,
     );
+    // Médiation (ADR 0015) ; l'ancienne route /decide reste un alias (refus SUPPORT ci-dessus).
     const decided = await call(
       "POST",
-      `/v1/admin/claims/${f.claimId}/decide`,
+      `/v1/admin/claims/${f.claimId}/mediate`,
       f.admin,
       { refund: true, note },
     );

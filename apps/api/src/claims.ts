@@ -328,7 +328,7 @@ export async function claimRoutes(
     },
   );
 
-  // ---------- Plateforme : instruction (support) et arbitrage (admin) ----------
+  // ---------- Plateforme : instruction (support) et médiation (admin) ----------
   app.get(
     "/v1/admin/claims",
     {
@@ -378,39 +378,41 @@ export async function claimRoutes(
     },
   );
 
-  app.post(
-    "/v1/admin/claims/:claimId/decide",
-    {
-      schema: {
-        params: claimParams,
-        body: {
-          type: "object",
-          additionalProperties: false,
-          required: ["refund", "note"],
-          properties: {
-            refund: { type: "boolean" },
-            note: { type: "string", minLength: 10, maxLength: 1000 },
+  // « /decide » : ancien nom (arbitrage), gardé un lot pour les clients déjà déployés (ADR 0015).
+  for (const action of ["mediate", "decide"])
+    app.post(
+      `/v1/admin/claims/:claimId/${action}`,
+      {
+        schema: {
+          params: claimParams,
+          body: {
+            type: "object",
+            additionalProperties: false,
+            required: ["refund", "note"],
+            properties: {
+              refund: { type: "boolean" },
+              note: { type: "string", minLength: 10, maxLength: 1000 },
+            },
           },
+          response: { 200: anyObject, ...refusals },
         },
-        response: { 200: anyObject, ...refusals },
       },
-    },
-    async (request, reply) => {
-      if (!(await requireSameOrigin(request, reply, webOrigin))) return reply;
-      const staff = await requireStaff(db, request, reply, "claim:decide");
-      if (!staff) return reply;
-      const { claimId } = request.params as { claimId: string };
-      const body = request.body as { refund: boolean; note: string };
-      const [row] = await asRuntime(
-        db,
-        { userId: staff.principal.userId },
-        (tx) =>
-          tx.$queryRaw<{ outcome: string }[]>`
-            SELECT arbitrate_claim(${claimId}::uuid, ${body.refund}, ${body.note}) AS outcome`,
-      );
-      return outcome(reply, row?.outcome ?? "not_found", () => ({
-        status: body.refund ? "REFUND_APPROVED" : "CLOSED_NO_REFUND",
-      }));
-    },
-  );
+      async (request, reply) => {
+        if (!(await requireSameOrigin(request, reply, webOrigin))) return reply;
+        const staff = await requireStaff(db, request, reply, "claim:mediate");
+        if (!staff) return reply;
+        const { claimId } = request.params as { claimId: string };
+        const body = request.body as { refund: boolean; note: string };
+        const [row] = await asRuntime(
+          db,
+          { userId: staff.principal.userId },
+          (tx) =>
+            tx.$queryRaw<{ outcome: string }[]>`
+              SELECT mediate_claim(${claimId}::uuid, ${body.refund}, ${body.note}) AS outcome`,
+        );
+        return outcome(reply, row?.outcome ?? "not_found", () => ({
+          status: body.refund ? "REFUND_APPROVED" : "CLOSED_NO_REFUND",
+        }));
+      },
+    );
 }

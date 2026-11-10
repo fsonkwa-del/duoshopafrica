@@ -15,6 +15,8 @@ Chaque réponse est reportée dans [hypotheses.md](hypotheses.md) (statut, auteu
 | J7  | Quelles mentions obligatoires selon la loi n° 2010/021, sur la fiche boutique, la fiche produit et la commande ?                                                                                | 7    |
 | J8  | Textes à fournir : CGU, CGV, politique de confidentialité, consentement marketing, mention du droit de saisir le tribunal, rappel de la garantie légale                                         | 2, 7 |
 | J9  | En mode direct, qui est responsable du remboursement de l'acheteur, et que doit dire le contrat vendeur ?                                                                                       | 3    |
+| J10 | Notre « médiation » décide d'un remboursement quand la plateforme détient les fonds : faut-il un autre terme, ou une procédure où chaque partie accepte l'avis ?                                | 7    |
+| J11 | Les mentions affichées (raison sociale, forme, immatriculation, quartier, téléphone et e-mail de la boutique) suffisent-elles ? Faut-il le NIU, ou le nom du dirigeant d'une société ?          | 7    |
 
 ## Expert-comptable
 

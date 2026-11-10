@@ -223,6 +223,9 @@ model Store {
   deliveryFeeMinor BigInt?
   pickupEnabled Boolean @default(false)
   pickupInstructions String?
+  // Contact public (mentions légales, ADR 0015), distinct du téléphone privé du propriétaire.
+  contactPhone String?
+  contactEmail String?
   version Int @default(0)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
@@ -232,6 +235,7 @@ model Store {
   locations InventoryLocation[]
   sellerOrders SellerOrder[]
   parameters RegulatoryParameter[]
+  zoneFees StoreZoneFee[]
   @@unique([tenantId, id])
 }
 model StoreMember {
@@ -485,6 +489,9 @@ model Address {
   district String
   landmark String
   details String?
+  // Quartier de livraison : détermine le tarif de chaque boutique (ADR 0015).
+  zoneId String? @db.Uuid
+  zone DeliveryZone? @relation(fields: [zoneId], references: [id], onDelete: Restrict)
   // Facultatif, arrondi à 4 décimales (~11 m) : localisation limitée au besoin de livraison.
   latitude Decimal? @db.Decimal(7, 4)
   longitude Decimal? @db.Decimal(7, 4)
@@ -523,6 +530,8 @@ model SellerOrder {
   storeId String @db.Uuid
   // Nom figé : l'acheteur lit sa commande même si la boutique quitte la vitrine ensuite.
   storeName String
+  // Mentions légales du vendeur figées à l'achat (loi n° 2010/021, ADR 0015).
+  sellerLegal Json?
   status OrderStatus @default(AWAITING_PAYMENT)
   deliveryMethod DeliveryMethod
   deliveryFeeMinor BigInt
@@ -849,4 +858,30 @@ model RegulatoryParameter {
   rejectedAt DateTime? @db.Timestamptz(3)
   rejectReason String?
   @@index([key, storeId, effectiveFrom])
+}
+
+// ---------- Zones de livraison (lot 7, ADR 0015) ----------
+model DeliveryZone {
+  id String @id @default(uuid()) @db.Uuid
+  slug String @unique
+  city String
+  name String
+  position Int @default(100)
+  active Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  fees StoreZoneFee[]
+  addresses Address[]
+  @@index([city, position])
+}
+// Tarif d'une boutique pour un quartier ; feeMinor NULL = quartier non desservi.
+model StoreZoneFee {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  storeId String @db.Uuid
+  zoneId String @db.Uuid
+  feeMinor BigInt?
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  zone DeliveryZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  @@unique([storeId, zoneId])
 }

@@ -686,3 +686,41 @@ Plan de conformité validé par l'utilisateur le 10 novembre 2026 (`docs/complia
   - écriture directe refusée au runtime ;
   - chevauchement refusé même au propriétaire.
 - Suites complètes : lint, typecheck, 76 tests unitaires, 173 sur base réelle (base 19, API 152, worker 2).
+
+# Conformité — Lot 7 : adaptations juridiques (ADR 0015) — 10 novembre 2026
+
+Branche `compliance/lot-7-legal`, issue du lot 0.
+
+## Livré
+
+- **Médiation au lieu d'arbitrage** : fonction SQL, permission, route (ancien nom gardé en alias), textes FR/EN.
+- **Droits de l'acheteur** : échéance de réclamation affichée, calculée en base à partir de la date de remise et du paramètre daté. Rappel provisoire de la garantie légale et du droit de saisir le juge (H26).
+- **Mentions légales** :
+  - contact public de la boutique ;
+  - mentions d'un vendeur vérifié sur la fiche produit, figées sur la commande ;
+  - mention « prix toutes taxes comprises » ;
+  - jamais le nom ni le téléphone privés du propriétaire.
+- **Frais de livraison par quartier** :
+  - 15 quartiers de Douala gérés par l'ADMIN ;
+  - tarifs par quartier saisis par le vendeur, avec la valeur « non desservi » ;
+  - devis serveur selon le quartier de l'adresse, montant figé sur la commande ;
+  - compatibilité : le tarif fixe existant devient « toutes zones ».
+- Textes de durée codés en dur retirés (« 30 minutes », « 7 jours ») : les délais sont des paramètres.
+- **Défaut trouvé et corrigé pendant les tests** : avec des tarifs par quartier, le montant « dès » affiché était le tarif « toutes zones » au lieu du plus bas.
+
+## Commandes réellement exécutées
+
+- `prisma migrate diff` : aucun écart. `pnpm db:roundtrip` : 4 migrations réversibles défaites puis réappliquées, « round trip ok (2012 schema facts) ».
+- `legal.db.test.ts` (4 tests) :
+  - contact : propriétaire seul, numéro et e-mail validés ;
+  - mentions exactes sur la fiche, sans nom ni téléphone privés ;
+  - aucune mention pour une boutique non vérifiée ;
+  - mentions figées sur la commande malgré un changement de contact ultérieur.
+- `zones.db.test.ts` (3 tests) :
+  - quartiers publics, gestion ADMIN seule, désactivation ;
+  - tarifs : propriétaire seul, montant invalide refusé ;
+  - devis : tarif du quartier, repli « toutes zones », quartier non desservi refusé (`zone_not_served`), quartier inconnu refusé, quartier repris comme précision ;
+  - montant figé sur la commande.
+- `claims.db.test.ts` : route `/mediate`, refus du SUPPORT par l'alias `/decide`, échéance exposée (remise + 7 jours).
+- Tests unitaires du domaine : tarif par quartier et offre affichée.
+- Suites : lint, typecheck, 78 tests unitaires, 180 tests sur base réelle (base 19, API 159, worker 2).

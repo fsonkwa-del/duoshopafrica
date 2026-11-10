@@ -1,10 +1,15 @@
-import { asRuntime, type Database } from "@duoshop/database";
-import { availabilityOf, toSearchQuery } from "@duoshop/domain";
+import { asRuntime, type Database, type ScopedTx } from "@duoshop/database";
+import {
+  availabilityOf,
+  homeDeliveryOffer,
+  toSearchQuery,
+} from "@duoshop/domain";
 import type {
   CatalogItemDTO,
   CatalogPageDTO,
   MediaDTO,
   PublicProductDTO,
+  SellerLegalDTO,
 } from "@duoshop/types";
 import type { FastifyInstance } from "fastify";
 import { categoryScope } from "./categories";
@@ -41,6 +46,16 @@ interface SearchRow {
 // Lecture publique SANS contexte utilisateur ni tenant : seules les politiques RLS public_read
 // s'appliquent (produits publiés de vendeurs actifs). Le filtre de statut ci-dessous est redondant
 // par choix (défense en profondeur), pas la seule protection.
+// Mentions légales publiques d'une boutique vérifiée et active (ADR 0015) ; null sinon.
+export async function sellerLegal(
+  tx: ScopedTx,
+  storeId: string,
+): Promise<SellerLegalDTO | null> {
+  const [row] = await tx.$queryRaw<{ legal: SellerLegalDTO | null }[]>`
+    SELECT store_legal_mentions(${storeId}::uuid) AS legal`;
+  return row?.legal ?? null;
+}
+
 export async function storefrontRoutes(
   app: FastifyInstance,
   options: { db: Database; mediaBaseUrl?: string },
@@ -180,12 +195,14 @@ export async function storefrontRoutes(
             description: true,
             store: {
               select: {
+                id: true,
                 name: true,
                 slug: true,
                 createdAt: true,
                 deliveryFeeMinor: true,
                 pickupEnabled: true,
                 pickupInstructions: true,
+                zoneFees: { select: { zoneId: true, feeMinor: true } },
               },
             },
             category: {
@@ -224,6 +241,10 @@ export async function storefrontRoutes(
       );
       if (!product || product.variants.length === 0)
         return reply.code(404).send({ error: "not_found" });
+      const offer = homeDeliveryOffer(product.store);
+      const legal = await asRuntime(db, {}, (tx) =>
+        sellerLegal(tx, product.store.id),
+      );
       const name = (c: { nameFr: string; nameEn: string }) =>
         lang === "en" ? c.nameEn : c.nameFr;
       const body: PublicProductDTO = {
@@ -246,18 +267,19 @@ export async function storefrontRoutes(
         store: { name: product.store.name, slug: product.store.slug },
         seller: {
           since: product.store.createdAt.getUTCFullYear(),
-          homeDelivery:
-            product.store.deliveryFeeMinor === null
-              ? null
-              : {
-                  fee: {
-                    amountMinor: product.store.deliveryFeeMinor.toString(),
-                    currency: product.variants[0]?.currency ?? "XAF",
-                  },
+          homeDelivery: offer
+            ? {
+                fee: {
+                  amountMinor: offer.feeMinor.toString(),
+                  currency: product.variants[0]?.currency ?? "XAF",
                 },
+                byZone: offer.byZone,
+              }
+            : null,
           pickup: product.store.pickupEnabled
             ? { instructions: product.store.pickupInstructions }
             : null,
+          legal,
         },
         variants: product.variants.map((v) => ({
           id: v.id,

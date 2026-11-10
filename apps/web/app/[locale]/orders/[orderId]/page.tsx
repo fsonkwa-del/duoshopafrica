@@ -14,6 +14,7 @@ import { notFound } from "next/navigation";
 import { apiUrl, sessionToken } from "../../../../lib/session";
 import { cancelOrderAction } from "../../checkout/actions";
 import { ClaimCard } from "../../claim-card";
+import { SellerLegal } from "../../seller-legal";
 import { ShopShell } from "../../shop-shell";
 import { claimStepAction, payAction, simulateAction } from "./actions";
 
@@ -248,6 +249,12 @@ export default async function OrderPage({
               </ol>
               {seller.claimable && (
                 <p>
+                  {seller.claimDeadline && (
+                    <span className="meta">
+                      {cl.deadline}{" "}
+                      {formatDateTime(seller.claimDeadline, locale)}{" "}
+                    </span>
+                  )}
                   <Link
                     className="secondary"
                     href={`/${locale}/orders/${order.id}/claim?seller=${seller.id}`}
@@ -255,6 +262,12 @@ export default async function OrderPage({
                     {cl.report}
                   </Link>
                 </p>
+              )}
+              {seller.sellerLegal && (
+                <details>
+                  <summary>{t.legal.mentionsTitle}</summary>
+                  <SellerLegal locale={locale} legal={seller.sellerLegal} />
+                </details>
               )}
               {seller.claims.map((claim) => (
                 <ClaimCard key={claim.id} locale={locale} claim={claim}>

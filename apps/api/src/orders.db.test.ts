@@ -256,6 +256,7 @@ describe("checkout quote", () => {
     );
     assert.deepEqual(a.homeDelivery, {
       fee: { amountMinor: "1500", currency: "XAF" },
+      byZone: false,
     });
     assert.equal(b.homeDelivery, null);
     assert.equal(b.pickup.instructions, "Face pharmacie du rond-point");

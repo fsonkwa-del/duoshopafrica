@@ -1,6 +1,6 @@
 # ADR 0015 — Adaptations juridiques dans le produit
 
-Date : 2026-11-09. Statut : proposé (lot 7).
+Date : 2026-11-09. Statut : accepté le 2026-11-10 et livré (lot 7).
 
 ## Décision
 
@@ -17,3 +17,27 @@ Date : 2026-11-09. Statut : proposé (lot 7).
 ## Conséquences
 
 Lot peu risqué, sans effet sur l'argent déjà encaissé. Les E2E du litige et du checkout sont mis à jour.
+
+## Mise en œuvre (10 novembre 2026)
+
+- **Médiation.**
+  - Migration `202611180001_claims_mediation` : `arbitrate_claim` devient `mediate_claim`, et l'ancien nom reste un alias.
+  - Permission `claim:mediate`. Nouvelle route `/v1/admin/claims/:id/mediate`, et `/decide` reste comme alias.
+  - Textes FR/EN : « médiation », « avis de médiation ».
+  - Les clés de notification enregistrées (`claim_arbitrated`) sont conservées pour lire l'historique ; seul leur libellé change.
+- **Droits de l'acheteur.** Sur la page de réclamation, un rappel de la garantie légale et du droit de saisir la juridiction compétente (texte provisoire, H26 ; terme « médiation » : H27). L'échéance de réclamation est affichée, calculée avec le paramètre `claims.window` à la date de remise.
+- **Mentions légales.**
+  - Migration `202611180002_legal_mentions`. Contact public de la boutique (`contactPhone`, `contactEmail`), distinct du téléphone privé du propriétaire.
+  - Fonction `store_legal_mentions` : raison sociale, forme, immatriculation, quartier et ville, contact. Elle ne renvoie rien tant que la boutique n'est pas vérifiée et active, et jamais le nom ni le téléphone privés du propriétaire.
+  - Mentions affichées sur la fiche produit, et figées sur chaque sous-commande (`SellerOrder.sellerLegal`).
+  - Mention « Prix toutes taxes comprises, hors frais de livraison » (H25).
+- **Frais par quartier.**
+  - Migration `202611180003_delivery_zones` : `DeliveryZone`, avec 15 quartiers de Douala gérés par l'ADMIN ; `StoreZoneFee`, où un montant NULL signifie « non desservi » ; `Address.zoneId`.
+  - Le devis serveur applique le tarif du quartier, sinon le tarif « toutes zones » existant, puis le fige sur la commande.
+  - Écrans : choix du quartier dans les adresses, tarifs par quartier côté vendeur, page d'administration « Quartiers de livraison ».
+  - Les montants « dès » affichés sont le tarif le plus bas.
+
+Non livré dans ce lot :
+
+- les textes définitifs du juriste (CGV, rappel de garantie), que le produit affichera, versionnés, au lot 2 ;
+- une page publique de boutique : elle n'existe pas encore, et les mentions sont donc affichées sur chaque fiche produit et chaque commande.

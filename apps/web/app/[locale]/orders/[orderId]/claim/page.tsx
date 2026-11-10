@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { formatMoney, isLocale, messages } from "@duoshop/i18n";
+import { formatDateTime, formatMoney, isLocale, messages } from "@duoshop/i18n";
 import { getOrder } from "@duoshop/sdk";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
@@ -46,6 +46,12 @@ export default async function NewClaim({
         {t.orders.seller} : {seller.storeName}
       </p>
       <p className="hint">{c.reportHelp}</p>
+      {seller.claimDeadline && (
+        <p>
+          {c.deadline} {formatDateTime(seller.claimDeadline, locale)}
+        </p>
+      )}
+      <p className="hint">{c.legalRights}</p>
       {query.error && (
         <Notice>
           {query.error in c.errors

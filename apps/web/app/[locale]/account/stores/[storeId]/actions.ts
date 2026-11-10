@@ -1,7 +1,12 @@
 "use server";
 import { isLocale } from "@duoshop/i18n";
-import { submitVerification, updateFulfilment } from "@duoshop/sdk";
-import type { BusinessTypeDTO } from "@duoshop/types";
+import {
+  submitVerification,
+  updateFulfilment,
+  updateStoreContact,
+  updateZoneFees,
+} from "@duoshop/sdk";
+import type { BusinessTypeDTO, StoreZoneFeeDTO } from "@duoshop/types";
 import { redirect } from "next/navigation";
 import { apiUrl, sessionToken, webOrigin } from "../../../../../lib/session";
 
@@ -45,5 +50,47 @@ export async function saveFulfilment(formData: FormData) {
   });
   redirect(
     `${back}?verification=${result.ok ? "fulfilment_saved" : "fulfilment_failed"}`,
+  );
+}
+
+// Contact public de la boutique (mentions légales, ADR 0015).
+export async function saveContact(formData: FormData) {
+  const locale = String(formData.get("locale"));
+  const storeId = String(formData.get("storeId"));
+  const back = `/${isLocale(locale) ? locale : "fr"}/account/stores/${encodeURIComponent(storeId)}`;
+  const token = await sessionToken();
+  if (!token) redirect(back);
+  const phone = String(formData.get("contactPhone") ?? "").trim();
+  const email = String(formData.get("contactEmail") ?? "").trim();
+  const result = await updateStoreContact(apiUrl, token, webOrigin, storeId, {
+    phone: phone || null,
+    email: email || null,
+  });
+  redirect(
+    `${back}?verification=${result.ok ? "contact_saved" : "contact_failed"}`,
+  );
+}
+
+// Tarifs par quartier : champ vide = tarif « toutes zones » ; case cochée = non desservi.
+export async function saveZoneFees(formData: FormData) {
+  const locale = String(formData.get("locale"));
+  const storeId = String(formData.get("storeId"));
+  const back = `/${isLocale(locale) ? locale : "fr"}/account/stores/${encodeURIComponent(storeId)}`;
+  const token = await sessionToken();
+  if (!token) redirect(back);
+  const zoneIds = new Set<string>();
+  for (const key of formData.keys()) {
+    const match = /^(fee|off)_([0-9a-f-]{36})$/.exec(key);
+    if (match?.[2]) zoneIds.add(match[2]);
+  }
+  const fees = [...zoneIds].flatMap((zoneId): StoreZoneFeeDTO[] => {
+    if (formData.get(`off_${zoneId}`) === "on")
+      return [{ zoneId, feeMinor: null }];
+    const fee = String(formData.get(`fee_${zoneId}`) ?? "").trim();
+    return fee ? [{ zoneId, feeMinor: fee }] : [];
+  });
+  const result = await updateZoneFees(apiUrl, token, webOrigin, storeId, fees);
+  redirect(
+    `${back}?verification=${result.ok ? "zones_saved" : "zones_failed"}`,
   );
 }

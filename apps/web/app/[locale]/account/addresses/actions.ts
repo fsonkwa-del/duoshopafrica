@@ -10,6 +10,7 @@ const fields = [
   "phone",
   "city",
   "district",
+  "zoneId",
   "landmark",
   "details",
 ];

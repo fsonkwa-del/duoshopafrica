@@ -1,5 +1,5 @@
 import { isLocale, messages } from "@duoshop/i18n";
-import { listAddresses } from "@duoshop/sdk";
+import { getDeliveryZones, listAddresses } from "@duoshop/sdk";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,6 +24,7 @@ export default async function Addresses({
   const token = await sessionToken();
   const result = token ? await listAddresses(apiUrl, token) : null;
   if (!result?.ok) return <SignIn locale={locale} path={path} />;
+  const zones = await getDeliveryZones(apiUrl);
   return (
     <AccountShell locale={locale} path={path} signedIn>
       <p>
@@ -55,7 +56,7 @@ export default async function Addresses({
         <h2 id="new-address">{a.add}</h2>
         <form action={createAddressAction} className="stack">
           <input type="hidden" name="locale" value={locale} />
-          <AddressFields locale={locale} />
+          <AddressFields locale={locale} zones={zones} />
           <button type="submit" className="cta">
             {a.save}
           </button>

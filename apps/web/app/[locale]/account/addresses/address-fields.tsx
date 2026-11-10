@@ -1,8 +1,16 @@
 import { type Locale, messages } from "@duoshop/i18n";
+import type { DeliveryZoneDTO } from "@duoshop/types";
 
 // Champs d'adresse locale (quartier et repère obligatoires), partagés entre
-// « Mes adresses » et le checkout. Le numéro est normalisé par l'API.
-export function AddressFields({ locale }: { locale: Locale }) {
+// « Mes adresses » et le checkout. Le numéro est normalisé par l'API. Le quartier choisi dans la
+// liste fixe le tarif de livraison de chaque boutique (ADR 0015).
+export function AddressFields({
+  locale,
+  zones,
+}: {
+  locale: Locale;
+  zones: DeliveryZoneDTO[];
+}) {
   const a = messages[locale].addresses;
   const field = (
     name: string,
@@ -39,7 +47,18 @@ export function AddressFields({ locale }: { locale: Locale }) {
         defaultValue: "Douala",
         maxLength: 60,
       })}
-      {field("district", a.district, { required: true, maxLength: 80 })}
+      <label>
+        {a.zone}
+        <select name="zoneId" defaultValue="">
+          <option value="">{a.zoneOther}</option>
+          {zones.map((z) => (
+            <option key={z.id} value={z.id}>
+              {z.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {field("district", a.district, { maxLength: 80 })}
       {field("landmark", a.landmark, {
         required: true,
         minLength: 3,

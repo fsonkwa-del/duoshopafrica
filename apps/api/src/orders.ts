@@ -9,6 +9,8 @@ import {
 import {
   canOpenClaim,
   claimHoldsPayout,
+  deliveryFeeFor,
+  homeDeliveryOffer,
   normalizeCameroonPhone,
   parsePriceMinor,
   roundCoordinate,
@@ -21,6 +23,7 @@ import {
   type DeliveryOptionsDTO,
   type OrderDTO,
   type QuoteDTO,
+  type SellerLegalDTO,
   type SellerOrderDTO,
 } from "@duoshop/types";
 import type { FastifyInstance, FastifyReply } from "fastify";
@@ -35,6 +38,7 @@ import {
 import { paymentView } from "./payments";
 import { readCookie } from "./session";
 import { inStore } from "./store-scope";
+import { sellerLegal } from "./storefront";
 
 const uuid = { type: "string", format: "uuid" } as const;
 const refusals = {
@@ -83,6 +87,7 @@ async function deliveryOptions(tx: ScopedTx, slugs: string[]) {
       deliveryFeeMinor: true,
       pickupEnabled: true,
       pickupInstructions: true,
+      zoneFees: { select: { zoneId: true, feeMinor: true } },
     },
   });
 }
@@ -105,7 +110,10 @@ async function computeQuote(
     cart.groups.map((g) => g.store.slug),
   );
   const address = addressId
-    ? await tx.address.findFirst({ where: { id: addressId, archivedAt: null } })
+    ? await tx.address.findFirst({
+        where: { id: addressId, archivedAt: null },
+        include: { zone: { select: { id: true, name: true } } },
+      })
     : null;
   if (addressId && !address) throw new CheckoutRefusal("address_not_found");
   let itemsTotal = 0n;
@@ -116,10 +124,12 @@ async function computeQuote(
     if (!store || !choice) throw new CheckoutRefusal("delivery_choice_missing");
     let fee = 0n;
     if (choice.method === "HOME_DELIVERY") {
-      if (store.deliveryFeeMinor === null)
+      if (!homeDeliveryOffer(store))
         throw new CheckoutRefusal("delivery_unavailable");
       if (!address) throw new CheckoutRefusal("address_required");
-      fee = store.deliveryFeeMinor;
+      const zoneFee = deliveryFeeFor(store, address.zoneId);
+      if (zoneFee === null) throw new CheckoutRefusal("zone_not_served");
+      fee = zoneFee;
     } else if (!store.pickupEnabled)
       throw new CheckoutRefusal("pickup_unavailable");
     const items = BigInt(group.subtotal.amountMinor);
@@ -155,7 +165,10 @@ function quoteView(quote: Awaited<ReturnType<typeof computeQuote>>): QuoteDTO {
 }
 
 // ---------- Vues ----------
-type AddressRow = Awaited<ReturnType<ScopedTx["address"]["findMany"]>>[number];
+type AddressRow = Awaited<
+  ReturnType<ScopedTx["address"]["findMany"]>
+>[number] & { zone?: { id: string; name: string } | null };
+const addressZone = { zone: { select: { id: true, name: true } } } as const;
 function addressView(a: AddressRow): AddressDTO {
   return {
     id: a.id,
@@ -167,6 +180,7 @@ function addressView(a: AddressRow): AddressDTO {
     landmark: a.landmark,
     details: a.details,
     hasCoordinates: a.latitude !== null,
+    zone: a.zone ?? null,
   };
 }
 const orderInclude = {
@@ -219,6 +233,9 @@ function sellerOrderView(
           "claimDeadline" in so ? (so.claimDeadline ?? null) : null,
         now: new Date(),
       }) && !(so.claims ?? []).some((c) => claimHoldsPayout(c.status)),
+    claimDeadline:
+      "claimDeadline" in so ? (so.claimDeadline?.toISOString() ?? null) : null,
+    sellerLegal: (so.sellerLegal as SellerLegalDTO | null) ?? null,
     claims: (so.claims ?? []).map(claimView),
     deliveryMethod: so.deliveryMethod,
     deliveryFee: money(so.deliveryFeeMinor, currency),
@@ -401,6 +418,73 @@ export async function orderRoutes(
     },
   );
 
+  // ---------- Contact public de la boutique (mentions légales, ADR 0015) ----------
+  app.post(
+    "/v1/stores/:storeId/contact",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["storeId"],
+          properties: { storeId: uuid },
+        },
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["phone", "email"],
+          properties: {
+            phone: { type: ["string", "null"], maxLength: 20 },
+            email: { type: ["string", "null"], maxLength: 254 },
+          },
+        },
+        response: refusals,
+      },
+    },
+    async (request, reply) => {
+      if (!(await requireSameOrigin(request, reply, webOrigin))) return reply;
+      const principal = await requirePrincipal(db, request, reply);
+      if (!principal) return reply;
+      const { storeId } = request.params as { storeId: string };
+      const body = request.body as {
+        phone: string | null;
+        email: string | null;
+      };
+      const phone = body.phone?.trim()
+        ? normalizeCameroonPhone(body.phone)
+        : null;
+      if (body.phone?.trim() && !phone)
+        return reply.code(400).send({ error: "invalid_phone" });
+      const email = body.email?.trim().toLowerCase() || null;
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+        return reply.code(400).send({ error: "invalid_email" });
+      const result = await inStore(
+        db,
+        principal,
+        storeId,
+        "store:configure",
+        async (tx, ctx) => {
+          await tx.store.update({
+            where: { id: storeId },
+            data: { contactPhone: phone, contactEmail: email },
+          });
+          await tx.auditLog.create({
+            data: {
+              tenantId: ctx.tenantId,
+              actorId: ctx.userId,
+              action: "store.contact.update",
+              resourceId: storeId,
+              requestId: request.id,
+              detail: { phone: phone !== null, email: email !== null },
+            },
+          });
+        },
+      );
+      if (!result.ok)
+        return reply.code(result.status).send({ error: result.error });
+      return { phone, email };
+    },
+  );
+
   // ---------- Adresses de l'acheteur ----------
   app.get(
     "/v1/addresses",
@@ -413,6 +497,7 @@ export async function orderRoutes(
           where: { archivedAt: null },
           orderBy: { createdAt: "desc" },
           take: 20,
+          include: addressZone,
         }),
       );
       return { addresses: rows.map(addressView) };
@@ -427,14 +512,7 @@ export async function orderRoutes(
         body: {
           type: "object",
           additionalProperties: false,
-          required: [
-            "label",
-            "recipientName",
-            "phone",
-            "city",
-            "district",
-            "landmark",
-          ],
+          required: ["label", "recipientName", "phone", "city", "landmark"],
           properties: {
             label: { type: "string", minLength: 1, maxLength: 40 },
             recipientName: { type: "string", minLength: 2, maxLength: 80 },
@@ -444,6 +522,7 @@ export async function orderRoutes(
             // Le repère est la clé de la livraison à Douala : obligatoire.
             landmark: { type: "string", minLength: 3, maxLength: 160 },
             details: { type: "string", maxLength: 200 },
+            zoneId: uuid,
             latitude: { type: "number", minimum: -90, maximum: 90 },
             longitude: { type: "number", minimum: -180, maximum: 180 },
           },
@@ -470,6 +549,14 @@ export async function orderRoutes(
       const created = await asRuntime(db, { userId }, async (tx) => {
         if ((await tx.address.count({ where: { archivedAt: null } })) >= 20)
           return null;
+        const zone = body.zoneId
+          ? await tx.deliveryZone.findFirst({
+              where: { id: String(body.zoneId), active: true },
+            })
+          : null;
+        if (body.zoneId && !zone) return "zone_unknown" as const;
+        const district = String(body.district ?? "").trim() || zone?.name;
+        if (!district || district.length < 2) return "invalid_request" as const;
         return tx.address.create({
           data: {
             userId,
@@ -477,15 +564,19 @@ export async function orderRoutes(
             recipientName: String(body.recipientName).trim(),
             phone,
             city: String(body.city).trim(),
-            district: String(body.district).trim(),
+            district,
+            zoneId: zone?.id ?? null,
             landmark: String(body.landmark).trim(),
             details: body.details ? String(body.details).trim() : null,
             latitude,
             longitude,
           },
+          include: addressZone,
         });
       });
       if (!created) return reply.code(409).send({ error: "address_limit" });
+      if (typeof created === "string")
+        return reply.code(400).send({ error: created });
       return reply.code(201).send(addressView(created));
     },
   );
@@ -542,12 +633,15 @@ export async function orderRoutes(
         );
         const options: DeliveryOptionsDTO[] = cart.groups.map((group) => {
           const store = stores.find((s) => s.slug === group.store.slug);
+          const offer = store ? homeDeliveryOffer(store) : null;
           return {
             store: group.store,
-            homeDelivery:
-              store?.deliveryFeeMinor != null
-                ? { fee: money(store.deliveryFeeMinor, cart.currency) }
-                : null,
+            homeDelivery: offer
+              ? {
+                  fee: money(offer.feeMinor, cart.currency),
+                  byZone: offer.byZone,
+                }
+              : null,
             pickup: store?.pickupEnabled
               ? { instructions: store.pickupInstructions }
               : null,
@@ -557,6 +651,7 @@ export async function orderRoutes(
           where: { archivedAt: null },
           orderBy: { createdAt: "desc" },
           take: 20,
+          include: addressZone,
         });
         return { cart, options, addresses: addresses.map(addressView) };
       });
@@ -727,6 +822,7 @@ export async function orderRoutes(
           });
           for (const g of quote.groups) {
             const sellerOrderId = randomUUID();
+            const legal = await sellerLegal(tx, g.store.id);
             await tx.sellerOrder.create({
               data: {
                 id: sellerOrderId,
@@ -734,6 +830,15 @@ export async function orderRoutes(
                 tenantId: g.store.tenantId,
                 storeId: g.store.id,
                 storeName: g.store.name,
+                // Mentions légales figées à l'achat (ADR 0015).
+                ...(legal
+                  ? {
+                      sellerLegal: legal as unknown as Record<
+                        string,
+                        string | null
+                      >,
+                    }
+                  : {}),
                 deliveryMethod: g.method,
                 deliveryFeeMinor: g.fee,
                 itemsTotalMinor: g.items,

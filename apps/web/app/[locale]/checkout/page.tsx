@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { formatMoney, isLocale, type Locale, messages } from "@duoshop/i18n";
-import { getCart, getCheckout, quoteCheckout } from "@duoshop/sdk";
+import {
+  getCart,
+  getCheckout,
+  getDeliveryZones,
+  quoteCheckout,
+} from "@duoshop/sdk";
 import type { DeliveryMethodDTO, MoneyDTO } from "@duoshop/types";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
@@ -133,6 +138,7 @@ export default async function Checkout({
                 />
                 <span>{c.home}</span>
                 <strong>
+                  {option.homeDelivery.byZone && `${c.byZone} `}
                   {option.homeDelivery.fee.amountMinor === "0"
                     ? c.free
                     : money(option.homeDelivery.fee, locale)}
@@ -180,7 +186,10 @@ export default async function Checkout({
           <form action={addAddressAction} className="stack">
             <input type="hidden" name="locale" value={locale} />
             <input type="hidden" name="query" value={currentQuery} />
-            <AddressFields locale={locale} />
+            <AddressFields
+              locale={locale}
+              zones={await getDeliveryZones(apiUrl)}
+            />
             <button type="submit" className="cta">
               {c.useAddress}
             </button>

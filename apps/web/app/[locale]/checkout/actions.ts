@@ -73,6 +73,7 @@ const addressFields = [
   "phone",
   "city",
   "district",
+  "zoneId",
   "landmark",
   "details",
 ];

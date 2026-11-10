@@ -19,6 +19,7 @@ import { orderRoutes } from "./orders";
 import { parameterRoutes } from "./parameters";
 import { paymentRoutes } from "./payments";
 import { storefrontRoutes } from "./storefront";
+import { zoneRoutes } from "./zones";
 
 export interface AppOptions {
   logger?: boolean;
@@ -159,6 +160,7 @@ export async function createApp({
     await app.register(fulfilmentRoutes, { db, webOrigin });
     await app.register(financeRoutes, { db, webOrigin });
     await app.register(parameterRoutes, { db, webOrigin });
+    await app.register(zoneRoutes, { db, webOrigin });
     await app.register(claimRoutes, { db, webOrigin });
     await app.register(mediaRoutes, {
       db,

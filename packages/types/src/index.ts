@@ -34,6 +34,20 @@ export interface StoreDTO extends StoreSummaryDTO {
     pickupInstructions: string | null;
     version: number;
   };
+  // Contact public affiché dans les mentions légales (ADR 0015).
+  contact: { phone: string | null; email: string | null };
+  // Tarifs par quartier ; un quartier absent suit le tarif « toutes zones ».
+  zoneFees: StoreZoneFeeDTO[];
+}
+// Mentions légales d'un vendeur vérifié (loi n° 2010/021 ; liste À VALIDER PAR JURISTE, H21).
+export interface SellerLegalDTO {
+  legalName: string | null;
+  businessType: BusinessTypeDTO | null;
+  registrationNumber: string | null;
+  city: string | null;
+  district: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
 }
 export type VerificationStatusDTO =
   | "PENDING"
@@ -163,8 +177,9 @@ export interface PublicProductDTO {
   // Encadré vendeur de la fiche : options de remise et ancienneté (année d'ouverture).
   seller: {
     since: number;
-    homeDelivery: { fee: MoneyDTO } | null;
+    homeDelivery: { fee: MoneyDTO; byZone: boolean } | null;
     pickup: { instructions: string | null } | null;
+    legal: SellerLegalDTO | null;
   };
   variants: PublicVariantDTO[];
   media: MediaDTO[];
@@ -208,10 +223,26 @@ export interface AddressDTO {
   landmark: string;
   details: string | null;
   hasCoordinates: boolean;
+  // Quartier de livraison (tarifs par zone, ADR 0015) ; null pour une adresse sans zone.
+  zone: { id: string; name: string } | null;
+}
+export interface DeliveryZoneDTO {
+  id: string;
+  slug: string;
+  city: string;
+  name: string;
+  position: number;
+  active: boolean;
+}
+// Tarif d'une boutique pour un quartier : montant, ou null = quartier non desservi.
+export interface StoreZoneFeeDTO {
+  zoneId: string;
+  feeMinor: string | null;
 }
 export interface DeliveryOptionsDTO {
   store: PublicStoreDTO;
-  homeDelivery: { fee: MoneyDTO } | null;
+  // fee : tarif « toutes zones », sinon le plus bas des quartiers desservis ; byZone : selon le quartier.
+  homeDelivery: { fee: MoneyDTO; byZone: boolean } | null;
   pickup: { instructions: string | null } | null;
 }
 export interface QuoteDTO {
@@ -257,6 +288,10 @@ export interface SellerOrderDTO {
   handoverCode: string | null;
   // Réclamation possible (remise prouvée depuis 7 jours au plus, aucune en cours).
   claimable: boolean;
+  // Remise + délai de réclamation en vigueur à la date de remise (paramètre claims.window).
+  claimDeadline: string | null;
+  // Mentions du vendeur figées à l'achat (null pour les commandes antérieures au lot 7).
+  sellerLegal: SellerLegalDTO | null;
   claims: ClaimDTO[];
   deliveryMethod: DeliveryMethodDTO;
   deliveryFee: MoneyDTO;

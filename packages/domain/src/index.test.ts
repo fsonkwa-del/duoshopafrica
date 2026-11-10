@@ -11,6 +11,8 @@ import {
   claimHoldsPayout,
   commissionMinor,
   commissionReversal,
+  deliveryFeeFor,
+  homeDeliveryOffer,
   type Membership,
   nextClaimSteps,
   nextFulfilmentSteps,
@@ -430,5 +432,40 @@ describe("toStoreSlug", () => {
     expect(toStoreSlug("Épicerie_Élégante")).toBe("epicerie-elegante");
     expect(toStoreSlug("déjà--valide")).toBe("deja-valide");
     expect(toStoreSlug("!!!")).toBe("");
+  });
+});
+
+describe("delivery fees by district", () => {
+  const akwa = "11111111-1111-4111-8111-111111111111";
+  const bonaberi = "22222222-2222-4222-8222-222222222222";
+  const store = {
+    deliveryFeeMinor: 1500n,
+    zoneFees: [
+      { zoneId: akwa, feeMinor: 1000n },
+      { zoneId: bonaberi, feeMinor: null },
+    ],
+  };
+  it("a district fee replaces the all-districts fee; null means not served", () => {
+    expect(deliveryFeeFor(store, akwa)).toBe(1000n);
+    expect(deliveryFeeFor(store, bonaberi)).toBeNull();
+    expect(deliveryFeeFor(store, null)).toBe(1500n);
+    expect(deliveryFeeFor(store, "33333333-3333-4333-8333-333333333333")).toBe(
+      1500n,
+    );
+  });
+  it("delivery is offered when any fee exists, shown from the lowest", () => {
+    expect(homeDeliveryOffer(store)).toEqual({ feeMinor: 1000n, byZone: true });
+    expect(
+      homeDeliveryOffer({ deliveryFeeMinor: null, zoneFees: store.zoneFees }),
+    ).toEqual({ feeMinor: 1000n, byZone: true });
+    expect(
+      homeDeliveryOffer({ deliveryFeeMinor: 2000n, zoneFees: [] }),
+    ).toEqual({ feeMinor: 2000n, byZone: false });
+    expect(
+      homeDeliveryOffer({
+        deliveryFeeMinor: null,
+        zoneFees: [{ zoneId: akwa, feeMinor: null }],
+      }),
+    ).toBeNull();
   });
 });

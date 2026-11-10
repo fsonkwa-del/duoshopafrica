@@ -15,6 +15,7 @@ import {
   type DeliveryContactDTO,
   type DeliveryMethodDTO,
   type DeliveryOptionsDTO,
+  type DeliveryZoneDTO,
   type EarningsDTO,
   type FinanceReportDTO,
   type HealthResponse,
@@ -35,6 +36,7 @@ import {
   type SellerOrderDTO,
   type StockDTO,
   type StoreDTO,
+  type StoreZoneFeeDTO,
   type VerificationQueueItemDTO,
   type VerificationStatusDTO,
   type VerificationSubmissionDTO,
@@ -619,6 +621,73 @@ export const closeCommissionRule = (
     sessionToken,
     { origin, body: { validTo } },
   );
+export const updateStoreContact = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  body: { phone: string | null; email: string | null },
+) =>
+  authorized<{ phone: string | null; email: string | null }>(
+    baseUrl,
+    `/v1/stores/${encodeURIComponent(storeId)}/contact`,
+    sessionToken,
+    { origin, body },
+  );
+export async function getDeliveryZones(
+  baseUrl: string,
+): Promise<DeliveryZoneDTO[]> {
+  const response = await fetch(new URL("/v1/delivery-zones", baseUrl), {
+    cache: "no-store",
+  });
+  if (!response.ok)
+    throw new Error(`Zones request failed with status ${response.status}`);
+  return ((await response.json()) as { zones: DeliveryZoneDTO[] }).zones;
+}
+export const getAdminZones = (baseUrl: string, sessionToken: string) =>
+  authorized<{ zones: DeliveryZoneDTO[] }>(
+    baseUrl,
+    "/v1/admin/delivery-zones",
+    sessionToken,
+  );
+export const createZone = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: { slug: string; city: string; name: string; position?: number },
+) =>
+  authorized<DeliveryZoneDTO>(
+    baseUrl,
+    "/v1/admin/delivery-zones",
+    sessionToken,
+    { origin, body },
+  );
+export const updateZone = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  zoneId: string,
+  body: { name?: string; position?: number; active?: boolean },
+) =>
+  authorized<DeliveryZoneDTO>(
+    baseUrl,
+    `/v1/admin/delivery-zones/${encodeURIComponent(zoneId)}`,
+    sessionToken,
+    { origin, body },
+  );
+export const updateZoneFees = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  fees: StoreZoneFeeDTO[],
+) =>
+  authorized<{ count: number }>(
+    baseUrl,
+    `/v1/stores/${encodeURIComponent(storeId)}/zone-fees`,
+    sessionToken,
+    { origin, body: { fees } },
+  );
 export const getParameters = (baseUrl: string, sessionToken: string) =>
   authorized<ParametersDTO>(baseUrl, "/v1/admin/parameters", sessionToken);
 export const proposeParameter = (
@@ -751,7 +820,7 @@ export const decideClaim = (
 ) =>
   authorized<{ status: string }>(
     baseUrl,
-    `/v1/admin/claims/${encodeURIComponent(claimId)}/decide`,
+    `/v1/admin/claims/${encodeURIComponent(claimId)}/mediate`,
     sessionToken,
     { origin, body },
   );

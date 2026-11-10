@@ -1,12 +1,17 @@
 import { isLocale, messages } from "@duoshop/i18n";
-import { getStore } from "@duoshop/sdk";
+import { getDeliveryZones, getStore } from "@duoshop/sdk";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiUrl, sessionToken } from "../../../../../lib/session";
 import { SellerNav } from "../../../admin/admin-nav";
 import { AccountShell, SignIn } from "../../account-shell";
-import { saveFulfilment, sendVerification } from "./actions";
+import {
+  saveContact,
+  saveFulfilment,
+  saveZoneFees,
+  sendVerification,
+} from "./actions";
 
 export default async function StorePage({
   params,
@@ -25,6 +30,7 @@ export default async function StorePage({
   if (!result || (!result.ok && result.status === 401))
     return <SignIn locale={locale} path={path} />;
   const back = <Link href={`/${locale}/account`}>{t.backToStores}</Link>;
+  const zones = await getDeliveryZones(apiUrl);
   if (!result.ok)
     return (
       <AccountShell locale={locale} path={path} signedIn>
@@ -115,6 +121,92 @@ export default async function StorePage({
           </label>
           <button type="submit" className="secondary">
             {t.fulfilment.save}
+          </button>
+        </form>
+      </section>
+      <section aria-labelledby="zone-fees" className="panel">
+        <h2 id="zone-fees">{t.zones.sellerTitle}</h2>
+        <p className="hint">{t.zones.sellerIntro}</p>
+        {outcome === "zones_saved" && <Notice>{t.zones.feesSaved}</Notice>}
+        {outcome === "zones_failed" && <Notice>{t.zones.feesFailed}</Notice>}
+        <form action={saveZoneFees} className="stack">
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="storeId" value={store.id} />
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t.zones.name}</th>
+                  <th>{t.zones.fee}</th>
+                  <th>{t.zones.notServed}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {zones.map((z) => {
+                  const current = store.zoneFees.find((f) => f.zoneId === z.id);
+                  return (
+                    <tr key={z.id}>
+                      <td>{z.name}</td>
+                      <td>
+                        <input
+                          name={`fee_${z.id}`}
+                          inputMode="numeric"
+                          pattern="[0-9]{0,9}"
+                          aria-label={`${t.zones.fee} — ${z.name}`}
+                          defaultValue={current?.feeMinor ?? ""}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          name={`off_${z.id}`}
+                          aria-label={`${t.zones.notServed} — ${z.name}`}
+                          defaultChecked={
+                            current !== undefined && current.feeMinor === null
+                          }
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <button type="submit" className="secondary">
+            {t.zones.save}
+          </button>
+        </form>
+      </section>
+      <section aria-labelledby="contact" className="panel">
+        <h2 id="contact">{t.legal.contactTitle}</h2>
+        <p className="hint">{t.legal.contactIntro}</p>
+        {outcome === "contact_saved" && <Notice>{t.legal.contactSaved}</Notice>}
+        {outcome === "contact_failed" && (
+          <Notice>{t.legal.contactFailed}</Notice>
+        )}
+        <form action={saveContact} className="stack">
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="storeId" value={store.id} />
+          <label>
+            {t.legal.contactPhone}
+            <input
+              name="contactPhone"
+              type="tel"
+              maxLength={20}
+              defaultValue={store.contact.phone ?? ""}
+            />
+          </label>
+          <label>
+            {t.legal.contactEmail}
+            <input
+              name="contactEmail"
+              type="email"
+              maxLength={254}
+              defaultValue={store.contact.email ?? ""}
+            />
+          </label>
+          <button type="submit" className="secondary">
+            {t.legal.contactSave}
           </button>
         </form>
       </section>

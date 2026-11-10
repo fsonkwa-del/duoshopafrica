@@ -70,7 +70,10 @@ test("after creating an account, the cart follows and the address is entered at 
   await page.getByRole("button", { name: "Calculer le total" }).click();
   await page.getByLabel("Nom du destinataire").fill("Awa Ngono");
   await page.getByLabel(/Téléphone/).fill("699 12 34 56");
-  await page.getByLabel("Quartier").fill("Bonamoussadi");
+  // Quartier choisi dans la liste : il détermine le tarif de livraison (ADR 0015).
+  await page
+    .getByLabel("Quartier de livraison")
+    .selectOption({ label: "Bonamoussadi" });
   await page
     .getByLabel(/Repère/)
     .fill("Derrière la station Total, portail bleu");

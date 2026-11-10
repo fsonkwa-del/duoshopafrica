@@ -113,7 +113,7 @@ export type PlatformPermission =
   | "finance:review"
   | "finance:configure"
   | "claim:review"
-  | "claim:decide"
+  | "claim:mediate"
   | "taxonomy:manage"
   | "parameter:read"
   | "parameter:propose"
@@ -126,13 +126,13 @@ const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
     "payment:configure",
     "finance:review",
     "claim:review",
-    "claim:decide",
+    "claim:mediate",
     "taxonomy:manage",
     "parameter:read",
     "parameter:propose",
     "parameter:decide",
   ],
-  // Le support instruit les litiges ; l'arbitrage (décision d'argent) revient à l'ADMIN.
+  // Le support instruit les litiges ; l'avis de médiation (décision d'argent) revient à l'ADMIN.
   SUPPORT: ["merchant:review", "payment:review", "claim:review"],
   // Les règles de commission ne sont modifiables que par la finance ; l'admin les consulte.
   FINANCE: [
@@ -308,7 +308,7 @@ export const HANDOVER_CODE_PATTERN = /^[0-9]{6}$/;
 export const HANDOVER_MAX_ATTEMPTS = 5;
 
 // ---------- Retours, litiges, remboursements (B09) ----------
-// Miroir des fonctions SQL (open_claim, respond_claim, escalate_claim, arbitrate_claim, withdraw_claim).
+// Miroir des fonctions SQL (open_claim, respond_claim, escalate_claim, mediate_claim, withdraw_claim).
 export type ClaimStatus =
   | "OPEN"
   | "ACCEPTED"
@@ -372,4 +372,36 @@ export function toStoreSlug(input: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+// ---------- Frais de livraison par quartier (lot 7, ADR 0015) ----------
+export type StoreDelivery = {
+  deliveryFeeMinor: bigint | null;
+  zoneFees: { zoneId: string; feeMinor: bigint | null }[];
+};
+// Tarif de livraison d'une boutique pour un quartier (ADR 0015) : ligne de zone si elle existe
+// (NULL = non desservi), sinon tarif « toutes zones » ; null = pas de livraison possible.
+export function deliveryFeeFor(
+  store: StoreDelivery,
+  zoneId: string | null,
+): bigint | null {
+  const zone = zoneId ? store.zoneFees.find((z) => z.zoneId === zoneId) : null;
+  return zone ? zone.feeMinor : store.deliveryFeeMinor;
+}
+// Livraison proposée si un tarif existe quelque part.
+export function homeDeliveryOffer(
+  store: StoreDelivery,
+): { feeMinor: bigint; byZone: boolean } | null {
+  const fees = [
+    store.deliveryFeeMinor,
+    ...store.zoneFees.map((z) => z.feeMinor),
+  ].filter((f): f is bigint => f !== null);
+  if (fees.length === 0) return null;
+  const lowest = fees.reduce((a, b) => (b < a ? b : a));
+  // Avec des tarifs par quartier, le montant affiché est un « dès » : le plus bas.
+  const byZone = store.zoneFees.length > 0;
+  return {
+    feeMinor: byZone ? lowest : (store.deliveryFeeMinor ?? lowest),
+    byZone,
+  };
 }

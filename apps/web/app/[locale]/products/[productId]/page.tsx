@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { apiUrl } from "../../../../lib/session";
 import { setLineAction } from "../../cart/actions";
 import { ProductGrid } from "../../product-grid";
+import { SellerLegal } from "../../seller-legal";
 import { ShopShell } from "../../shop-shell";
 
 const money = (m: MoneyDTO, locale: Locale) =>
@@ -131,6 +132,8 @@ export default async function ProductPage({
               {formatMoney(low, currency, locale)}
               {low !== high && ` – ${formatMoney(high, currency, locale)}`}
             </span>
+            <br />
+            <span className="meta">{t.legal.pricesNote}</span>
           </div>
           {query.ok === "added" && <Notice>{s.added}</Notice>}
           {query.error && (
@@ -216,6 +219,7 @@ export default async function ProductPage({
             <ul className="facts-list">
               <li>
                 {d.homeDelivery} :{" "}
+                {product.seller.homeDelivery?.byZone && `${t.checkout.byZone} `}
                 {product.seller.homeDelivery
                   ? product.seller.homeDelivery.fee.amountMinor === "0"
                     ? t.checkout.free
@@ -231,6 +235,10 @@ export default async function ProductPage({
                 </li>
               )}
             </ul>
+            <details>
+              <summary>{t.legal.mentionsTitle}</summary>
+              <SellerLegal locale={locale} legal={product.seller.legal} />
+            </details>
             {product.category && (
               <p>
                 <Link

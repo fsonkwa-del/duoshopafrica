@@ -78,6 +78,11 @@ export function AdminNav({
           icon: <TagIcon />,
         },
         {
+          href: href("zones"),
+          text: t.zones.adminTitle,
+          icon: <TagIcon />,
+        },
+        {
           href: href("commissions"),
           text: t.commissions.nav,
           icon: <TagIcon />,

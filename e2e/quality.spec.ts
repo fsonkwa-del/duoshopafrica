@@ -209,7 +209,7 @@ test("the product page shows the seller, guarantees and specifications", async (
   await expect(seller).toContainText("Marché Central, stand 7");
   await expect(
     page.getByRole("region", { name: "Vos garanties" }),
-  ).toContainText("7 jours");
+  ).toContainText("dans le délai indiqué sur la commande");
   const specs = page.getByRole("region", { name: "Caractéristiques" });
   await expect(specs).toContainText("Mode et pagnes › Tissus et pagnes");
   await expect(specs).toContainText("2 mètres");

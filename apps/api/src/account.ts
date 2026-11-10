@@ -126,12 +126,35 @@ export async function accountRoutes(
               "tenantStatus",
               "verification",
               "fulfilment",
+              "contact",
+              "zoneFees",
             ],
             properties: {
               ...storeSummary.properties,
               slug: { type: "string" },
               isDemo: { type: "boolean" },
               tenantStatus: { enum: ["PENDING", "ACTIVE", "SUSPENDED"] },
+              zoneFees: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["zoneId", "feeMinor"],
+                  properties: {
+                    zoneId: { type: "string" },
+                    feeMinor: { type: ["string", "null"] },
+                  },
+                },
+              },
+              contact: {
+                type: "object",
+                additionalProperties: false,
+                required: ["phone", "email"],
+                properties: {
+                  phone: { type: ["string", "null"] },
+                  email: { type: ["string", "null"] },
+                },
+              },
               fulfilment: {
                 type: "object",
                 additionalProperties: false,
@@ -205,6 +228,9 @@ export async function accountRoutes(
               deliveryFeeMinor: true,
               pickupEnabled: true,
               pickupInstructions: true,
+              contactPhone: true,
+              contactEmail: true,
+              zoneFees: { select: { zoneId: true, feeMinor: true } },
               version: true,
             },
           });
@@ -243,6 +269,11 @@ export async function accountRoutes(
               pickupInstructions: store.pickupInstructions,
               version: store.version,
             },
+            contact: { phone: store.contactPhone, email: store.contactEmail },
+            zoneFees: store.zoneFees.map((z) => ({
+              zoneId: z.zoneId,
+              feeMinor: z.feeMinor?.toString() ?? null,
+            })),
           };
           return { status: 200 as const, body };
         },
