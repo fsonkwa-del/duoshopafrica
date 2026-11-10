@@ -254,6 +254,8 @@ model Store {
   zoneFees StoreZoneFee[]
   paymentAccounts StorePaymentAccount[]
   invoices CommissionInvoice[]
+  kycProfiles KycProfile[]
+  kycDocuments KycDocument[]
   @@unique([tenantId, id])
 }
 model StoreMember {
@@ -1097,4 +1099,67 @@ model CommissionInvoiceLine {
   vatMinor BigInt
   invoice CommissionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
   @@index([invoiceId])
+}
+
+// ---------- KYC vendeur par niveaux (lot 5, ADR 0013) ----------
+enum KycDocumentType {
+  ID_CARD
+  PASSPORT
+  SELFIE
+  NIU_CERTIFICATE
+  RCCM
+  TAX_COMPLIANCE
+  STATUTES
+  DIRECTOR_ID
+}
+enum KycStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+model KycTierRequirement {
+  tier Int
+  documentType KycDocumentType
+  alternativeGroup String?
+  @@id([tier, documentType])
+}
+model KycProfile {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  storeId String @unique @db.Uuid
+  status KycStatus @default(DRAFT)
+  requestedTier Int?
+  approvedTier Int @default(0)
+  mobileMoneyNumber String?
+  location String?
+  niu String?
+  submittedBy String? @db.Uuid
+  submittedAt DateTime? @db.Timestamptz(3)
+  reviewedBy String? @db.Uuid
+  reviewedAt DateTime? @db.Timestamptz(3)
+  reason String?
+  version Int @default(0)
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  @@index([status, submittedAt])
+}
+// Pièce chiffrée dans le coffre KYC : seule la clé de données chiffrée est en base.
+model KycDocument {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  storeId String @db.Uuid
+  documentType KycDocumentType
+  objectKey String @unique
+  wrappedKey Bytes
+  keyVersion Int
+  sha256 String @db.Char(64)
+  contentType String
+  sizeBytes Int
+  uploadedBy String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  supersededAt DateTime? @db.Timestamptz(3)
+  purgeAfter DateTime? @db.Timestamptz(3)
+  purgedAt DateTime? @db.Timestamptz(3)
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  @@index([storeId, documentType])
 }

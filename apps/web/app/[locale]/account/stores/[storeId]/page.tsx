@@ -1,5 +1,10 @@
 import { isLocale, messages } from "@duoshop/i18n";
-import { getDeliveryZones, getPaymentAccounts, getStore } from "@duoshop/sdk";
+import {
+  getDeliveryZones,
+  getPaymentAccounts,
+  getStore,
+  getStoreKyc,
+} from "@duoshop/sdk";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,6 +17,7 @@ import {
   saveZoneFees,
   sendVerification,
 } from "./actions";
+import { KycSection } from "./kyc-section";
 import { PaymentAccount } from "./payment-account";
 
 export default async function StorePage({
@@ -36,6 +42,8 @@ export default async function StorePage({
   const accounts = token
     ? await getPaymentAccounts(apiUrl, token, storeId)
     : null;
+  // Dossier KYC (lot 5) : réservé au propriétaire (kyc:manage).
+  const kyc = token ? await getStoreKyc(apiUrl, token, storeId) : null;
   if (!result.ok)
     return (
       <AccountShell locale={locale} path={path} signedIn>
@@ -129,6 +137,14 @@ export default async function StorePage({
           </button>
         </form>
       </section>
+      {kyc?.ok && (
+        <KycSection
+          locale={locale}
+          storeId={store.id}
+          data={kyc.data}
+          {...(outcome ? { outcome } : {})}
+        />
+      )}
       {accounts?.ok && (
         <PaymentAccount
           locale={locale}

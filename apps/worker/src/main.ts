@@ -10,7 +10,7 @@ import {
   recognizeDueCommissions,
   releaseExpiredReservations,
 } from "@duoshop/database";
-import { storageFromEnv } from "@duoshop/media";
+import { storageFromEnv, vaultFromEnv } from "@duoshop/media";
 import {
   collectionFromEnv,
   MERCHANT_FIELDS,
@@ -179,6 +179,31 @@ async function accounting() {
 }
 await accounting();
 const accountingTimer = setInterval(accounting, 3600_000);
+// Pièces KYC dont la conservation est écoulée (lot 5) : objet effacé du coffre, puis marqué purgé.
+const kyc = vaultFromEnv(process.env);
+async function purgeKyc() {
+  if (!kyc) return;
+  let purged = 0;
+  try {
+    const due = await db.$queryRaw<{ id: string; objectKey: string }[]>`
+      SELECT * FROM kyc_documents_to_purge(100)`;
+    for (const d of due) {
+      await kyc.vault.delete(d.objectKey);
+      await db.$queryRaw`SELECT mark_kyc_purged(${d.id}::uuid)`;
+      purged++;
+    }
+    log({ job: "purge_kyc_documents", purged });
+  } catch (err) {
+    log({
+      job: "purge_kyc_documents",
+      status: "failed",
+      purged,
+      error: String(err),
+    });
+  }
+}
+await purgeKyc();
+const kycTimer = setInterval(purgeKyc, 24 * 3600_000);
 const timer = setInterval(purge, PURGE_EVERY_MS);
 const releaser = setInterval(releaseReservations, RELEASE_EVERY_MS);
 for (const signal of ["SIGINT", "SIGTERM"])
@@ -190,5 +215,6 @@ for (const signal of ["SIGINT", "SIGTERM"])
     clearInterval(reconcileTimer);
     clearInterval(retentionTimer);
     clearInterval(accountingTimer);
+    clearInterval(kycTimer);
     await db.$disconnect();
   });

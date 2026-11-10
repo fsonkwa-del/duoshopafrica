@@ -15,3 +15,14 @@ export {
   S3Storage,
   storageFromEnv,
 } from "./storage";
+export {
+  type KycKeys,
+  MemoryVault,
+  openDocument,
+  type PrivateVault,
+  rewrapKey,
+  S3Vault,
+  sealDocument,
+  sniffDocumentType,
+  vaultFromEnv,
+} from "./vault";

@@ -815,3 +815,31 @@ Branche `compliance/lot-4-accounting`, issue du lot 3.
   - factures : 4 000 TTC, 646 de TVA, 3 354 HT ; seconde émission sans effet ; série sans trou ; avoir de 2 000 (dont 323 de TVA) après une réclamation acceptée ; PDF ; paiement constaté par FINANCE seule ; un avoir ne se paie pas ;
   - correspondance et exports : FINANCE seule, BOM, en-têtes, numéro SYSCOHADA saisi présent, export tracé.
 - Suites : lint, typecheck, 82 tests unitaires, 197 tests sur base réelle (base 19, API 176, worker 2).
+
+# Conformité — Lot 5 : KYC vendeur par niveaux (ADR 0013) — 10 novembre 2026
+
+Branche `compliance/lot-5-kyc`, issue du lot 4.
+
+## Livré
+
+- Trois niveaux de pièces cumulatives, paramétrables en base.
+- Pièces contrôlées sur leurs octets, chiffrées par enveloppe dans un coffre séparé, jamais stockées en clair.
+- Dossier déposé par le propriétaire, décision par une autre personne, motif obligatoire pour refuser.
+- Consultation d'une pièce sur motif, journalisée, sans cache ni URL.
+- Effacement programmé des pièces remplacées ; passe quotidienne du worker.
+- Plafonds de ventes mensuels par niveau, appliqués à la commande sous verrou, désactivés par défaut.
+- **Défaut trouvé pendant les tests.** La permission `store:verify` n'existe que tant que la boutique est en attente : une boutique approuvée ne pouvait pas compléter son KYC. Une permission `kyc:manage` a été ajoutée.
+- **Test E2E corrigé (instabilité de la CI).** Après la remise, le test attendait le message « Étape enregistrée. », déjà affiché par l'étape précédente : sur une machine lente, la page acheteur s'ouvrait avant la remise. Il attend désormais la disparition du bouton de remise. La CI publie aussi les erreurs des serveurs en annotation quand les E2E échouent.
+
+## Commandes réellement exécutées
+
+- `pnpm db:roundtrip` : « round trip ok (2623 schema facts) ».
+- `kyc.db.test.ts` (4 tests, coffre en mémoire) :
+  - faux fichier refusé, non-membre 404 ;
+  - pièce chiffrée (le texte clair est absent de l'objet stocké) ;
+  - remplacement programmé pour effacement dans plus de 9 ans ;
+  - dépôt refusé tant qu'il manque des pièces ;
+  - la personne qui a déposé une pièce ne peut pas décider ; SUPPORT refusé ; refus sans motif refusé ; validation par COMPLIANCE (niveau 1, numéro normalisé, masqué dans la file) ;
+  - consultation sans motif refusée, SUPPORT refusé ; pièce restituée à l'identique, sans cache, journalisée une fois ;
+  - plafond appliqué : une deuxième commande de 600 000 FCFA est refusée au-delà de 1 000 000.
+- Suites : lint, typecheck, 82 tests unitaires, 201 tests sur base réelle (base 19, API 180, worker 2).

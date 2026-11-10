@@ -14,6 +14,7 @@ import { collectionRoutes, defaultCollection } from "./collection";
 import { devLoginRoutes } from "./dev-login";
 import { financeRoutes } from "./finance";
 import { fulfilmentRoutes } from "./fulfilment";
+import { type KycSettings, kycRoutes } from "./kyc";
 import { mediaRoutes } from "./media";
 import { merchantRoutes } from "./merchant";
 import { type OidcSettings, oidcRoutes } from "./oidc";
@@ -41,6 +42,8 @@ export interface AppOptions {
   collection?: CollectionSettings;
   // Variables d'environnement transmises aux adaptateurs des comptes vendeurs (mode direct).
   env?: Record<string, string | undefined>;
+  // Coffre et clés des pièces KYC (lot 5) ; absent => dépôt de pièces indisponible (503).
+  kyc?: KycSettings;
   // Développement uniquement : profils de démonstration quand Zitadel est absent.
   devLogin?: boolean;
   // Nombre de reverse proxies de confiance devant l'API (IP réelle pour rate limit et logs).
@@ -57,6 +60,7 @@ export async function createApp({
   providers = new Map(),
   collection = defaultCollection,
   env = process.env,
+  kyc,
   devLogin = false,
   trustProxy = 0,
 }: AppOptions = {}) {
@@ -178,6 +182,7 @@ export async function createApp({
     });
     await app.register(collectionRoutes, { db, webOrigin, collection, env });
     await app.register(accountingRoutes, { db, webOrigin });
+    await app.register(kycRoutes, { db, webOrigin, ...(kyc ? { kyc } : {}) });
     await app.register(fulfilmentRoutes, { db, webOrigin });
     await app.register(financeRoutes, { db, webOrigin });
     await app.register(parameterRoutes, { db, webOrigin });

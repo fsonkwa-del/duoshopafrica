@@ -782,6 +782,12 @@ export async function orderRoutes(
           );
           if (oneSellerPerOrder && quote.groups.length > 1)
             throw new CheckoutRefusal("one_seller_per_order");
+          // Plafond de ventes mensuel du niveau KYC de chaque vendeur (lot 5).
+          for (const g of quote.groups) {
+            const [cap] = await tx.$queryRaw<{ ok: boolean }[]>`
+              SELECT store_cap_allows(${g.store.id}::uuid, ${g.items + g.fee}::bigint) AS ok`;
+            if (!cap?.ok) throw new CheckoutRefusal("seller_cap_reached");
+          }
           if (quote.total.toString() !== body.expectedTotalMinor)
             throw new CheckoutRefusal("total_changed");
           // CGV en vigueur : acceptées explicitement, version figée sur la commande (ADR 0010).

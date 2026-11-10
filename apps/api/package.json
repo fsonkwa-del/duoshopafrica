@@ -7,7 +7,7 @@
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/main.js --external:fastify --external:@fastify/* --external:@prisma/* --external:pg --external:dotenv --external:sharp --external:@aws-sdk/* --external:pdfkit",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test:db": "tsx --test --test-concurrency=1 src/account.db.test.ts src/oidc.db.test.ts src/merchant.db.test.ts src/catalog.db.test.ts src/storefront.db.test.ts src/media.db.test.ts src/orders.db.test.ts src/payments.db.test.ts src/dev-login.db.test.ts src/guest-cart.db.test.ts src/fulfilment.db.test.ts src/finance.db.test.ts src/claims.db.test.ts src/cinetpay.db.test.ts src/categories.db.test.ts src/fapshi.db.test.ts src/parameters.db.test.ts src/legal.db.test.ts src/zones.db.test.ts src/privacy.db.test.ts src/collection.db.test.ts src/accounting.db.test.ts"
+    "test:db": "tsx --test --test-concurrency=1 src/account.db.test.ts src/oidc.db.test.ts src/merchant.db.test.ts src/catalog.db.test.ts src/storefront.db.test.ts src/media.db.test.ts src/orders.db.test.ts src/payments.db.test.ts src/dev-login.db.test.ts src/guest-cart.db.test.ts src/fulfilment.db.test.ts src/finance.db.test.ts src/claims.db.test.ts src/cinetpay.db.test.ts src/categories.db.test.ts src/fapshi.db.test.ts src/parameters.db.test.ts src/legal.db.test.ts src/zones.db.test.ts src/privacy.db.test.ts src/collection.db.test.ts src/accounting.db.test.ts src/kyc.db.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1152.0",

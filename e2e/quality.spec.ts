@@ -108,6 +108,7 @@ test("a buyer never reaches platform administration", async ({ browser }) => {
     "/fr/admin/access-log",
     "/fr/admin/invoices",
     "/fr/admin/collection",
+    "/fr/admin/kyc",
   ]) {
     await page.goto(resolve(path));
     await expect(

@@ -99,6 +99,11 @@ export function AdminNav({
           icon: <ShieldIcon />,
         },
         {
+          href: href("kyc"),
+          text: t.kyc.adminTitle,
+          icon: <ShieldIcon />,
+        },
+        {
           href: href("privacy"),
           text: t.privacy.admin.requestsTitle,
           icon: <ShieldIcon />,

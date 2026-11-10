@@ -1,5 +1,5 @@
 import { createDatabase } from "@duoshop/database";
-import { storageFromEnv } from "@duoshop/media";
+import { storageFromEnv, vaultFromEnv } from "@duoshop/media";
 import { collectionFromEnv, providersFromEnv } from "@duoshop/payments";
 import { createApp } from "./app.js";
 import { assertCollectionMode } from "./collection.js";
@@ -11,6 +11,8 @@ if (!Number.isInteger(port) || port < 1 || port > 65535)
 const db = createDatabase();
 const oidc = oidcSettingsFromEnv(process.env);
 const storage = storageFromEnv(process.env);
+// Coffre des pièces KYC (lot 5) : identifiants et clé maîtresse distincts des photos.
+const kyc = vaultFromEnv(process.env);
 const providers = providersFromEnv(process.env);
 // Mode d'encaissement (lot 3) : refus de démarrer si le mode n'est pas servi ou pas autorisé.
 const collection = collectionFromEnv(process.env);
@@ -29,6 +31,7 @@ const app = await createApp({
   ...(storage ? { storage } : {}),
   providers,
   collection,
+  ...(kyc ? { kyc } : {}),
   devLogin,
   trustProxy,
   ...(process.env.MEDIA_PUBLIC_BASE_URL

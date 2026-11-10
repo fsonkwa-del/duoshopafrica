@@ -997,6 +997,125 @@ export const saveLedgerMapping = (
     sessionToken,
     { origin, body },
   );
+export type KycDocumentType =
+  | "ID_CARD"
+  | "PASSPORT"
+  | "SELFIE"
+  | "NIU_CERTIFICATE"
+  | "RCCM"
+  | "TAX_COMPLIANCE"
+  | "STATUTES"
+  | "DIRECTOR_ID";
+export interface StoreKycDTO {
+  enabled: boolean;
+  status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+  approvedTier: number;
+  requestedTier: number | null;
+  reason: string | null;
+  documents: {
+    id: string;
+    documentType: KycDocumentType;
+    contentType: string;
+    sizeBytes: number;
+    createdAt: string;
+  }[];
+  requirements: {
+    tier: number;
+    documentType: KycDocumentType;
+    alternativeGroup: string | null;
+  }[];
+}
+export const getStoreKyc = (
+  baseUrl: string,
+  sessionToken: string,
+  storeId: string,
+) =>
+  authorized<StoreKycDTO>(
+    baseUrl,
+    `/v1/stores/${encodeURIComponent(storeId)}/kyc`,
+    sessionToken,
+  );
+// Pièce envoyée telle quelle (corps brut) : l'API en vérifie le type réel et la chiffre.
+export async function uploadKycDocument(
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  type: KycDocumentType,
+  file: { bytes: ArrayBuffer; contentType: string },
+): Promise<{ ok: boolean; error?: string }> {
+  const response = await fetch(
+    new URL(
+      `/v1/stores/${encodeURIComponent(storeId)}/kyc/documents/${type}`,
+      baseUrl,
+    ),
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        cookie: `${SESSION_COOKIE}=${sessionToken}`,
+        origin,
+        "content-type": file.contentType,
+      },
+      body: file.bytes,
+    },
+  );
+  if (response.ok) return { ok: true };
+  const body = (await response.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, error: body.error ?? `status_${response.status}` };
+}
+export const submitKyc = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  body: {
+    tier: number;
+    mobileMoneyNumber: string;
+    location: string;
+    niu?: string;
+  },
+) =>
+  authorized<{ outcome: string }>(
+    baseUrl,
+    `/v1/stores/${encodeURIComponent(storeId)}/kyc/submit`,
+    sessionToken,
+    { origin, body },
+  );
+export interface KycQueueDTO {
+  queue: {
+    storeId: string;
+    storeName: string;
+    requestedTier: number | null;
+    approvedTier: number;
+    mobileMoneyNumber: string | null;
+    location: string | null;
+    niu: string | null;
+    submittedAt: string | null;
+    submittedByMe: boolean;
+    documents: {
+      id: string;
+      documentType: KycDocumentType;
+      contentType: string;
+      createdAt: string;
+    }[];
+  }[];
+}
+export const getKycQueue = (baseUrl: string, sessionToken: string) =>
+  authorized<KycQueueDTO>(baseUrl, "/v1/admin/kyc", sessionToken);
+export const reviewKyc = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  body: { approve: boolean; reason?: string },
+) =>
+  authorized<{ outcome: string }>(
+    baseUrl,
+    `/v1/admin/kyc/${encodeURIComponent(storeId)}/review`,
+    sessionToken,
+    { origin, body },
+  );
 export const getParameters = (baseUrl: string, sessionToken: string) =>
   authorized<ParametersDTO>(baseUrl, "/v1/admin/parameters", sessionToken);
 export const proposeParameter = (

@@ -13,7 +13,9 @@ export type Permission =
   | "claim:respond"
   | "team:manage"
   // Compte marchand du vendeur chez le prestataire (mode direct, lot 3) : propriétaire seul.
-  | "payments:configure";
+  | "payments:configure"
+  // Dossier KYC et pièces justificatives (lot 5) : propriétaire seul, avant et après approbation.
+  | "kyc:manage";
 const grants: Record<StoreRole, readonly Permission[]> = {
   OWNER: [
     "store:read",
@@ -28,6 +30,7 @@ const grants: Record<StoreRole, readonly Permission[]> = {
     "claim:respond",
     "team:manage",
     "payments:configure",
+    "kyc:manage",
   ],
   MANAGER: [
     "store:read",
@@ -52,6 +55,7 @@ const allowedWhile: Record<TenantStatus, readonly Permission[]> = {
     "catalog:write",
     "inventory:write",
     "payments:configure",
+    "kyc:manage",
   ],
   ACTIVE: [
     "store:read",
@@ -65,6 +69,7 @@ const allowedWhile: Record<TenantStatus, readonly Permission[]> = {
     "claim:respond",
     "team:manage",
     "payments:configure",
+    "kyc:manage",
   ],
   // Suspendu : aucune action, mais le vendeur garde la vue de ce qui lui est dû.
   SUSPENDED: ["earnings:read"],

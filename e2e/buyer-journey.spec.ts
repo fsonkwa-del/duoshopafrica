@@ -118,6 +118,11 @@ test("the seller prepares and hands over against the buyer's code", async ({
     .getByLabel("Code à 6 chiffres donné par le client")
     .fill(await handoverCode(orderId));
   await seller.getByRole("button", { name: "Confirmer la remise" }).click();
+  // Le message « Étape enregistrée. » reste affiché depuis l'étape précédente : on attend que la
+  // remise soit réellement passée (plus de bouton de remise) avant d'ouvrir la page acheteur.
+  await expect(
+    seller.getByRole("button", { name: "Confirmer la remise" }),
+  ).toHaveCount(0);
   await expect(seller.getByText("Étape enregistrée.")).toBeVisible();
   await buyerPage.goto(orderUrl);
   await expect(buyerPage.getByText("Remise au client").first()).toBeVisible();

@@ -1,11 +1,14 @@
 "use server";
 import { isLocale } from "@duoshop/i18n";
 import {
+  type KycDocumentType,
   savePaymentAccount,
+  submitKyc,
   submitVerification,
   updateFulfilment,
   updateStoreContact,
   updateZoneFees,
+  uploadKycDocument,
 } from "@duoshop/sdk";
 import type { BusinessTypeDTO, StoreZoneFeeDTO } from "@duoshop/types";
 import { redirect } from "next/navigation";
@@ -116,5 +119,53 @@ export async function savePaymentAccountAction(formData: FormData) {
     result.ok
       ? `${back}?verification=account_saved&notify=${encodeURIComponent(result.data.notifyUrl)}`
       : `${back}?verification=account_failed`,
+  );
+}
+
+// Pièce KYC (lot 5) : transmise telle quelle à l'API, qui en contrôle le type et la chiffre.
+export async function uploadKycAction(formData: FormData) {
+  const locale = String(formData.get("locale"));
+  const storeId = String(formData.get("storeId"));
+  const back = `/${isLocale(locale) ? locale : "fr"}/account/stores/${encodeURIComponent(storeId)}`;
+  const token = await sessionToken();
+  if (!token) redirect(back);
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0 || file.size > 5 * 1024 * 1024)
+    redirect(`${back}?verification=kyc_error_invalid_file`);
+  const result = await uploadKycDocument(
+    apiUrl,
+    token,
+    webOrigin,
+    storeId,
+    String(formData.get("type")) as KycDocumentType,
+    {
+      bytes: await file.arrayBuffer(),
+      contentType: ["image/jpeg", "image/png", "application/pdf"].includes(
+        file.type,
+      )
+        ? file.type
+        : "application/pdf",
+    },
+  );
+  redirect(
+    `${back}?verification=${result.ok ? "kyc_uploaded" : `kyc_error_${result.error ?? "unknown"}`}`,
+  );
+}
+
+export async function submitKycAction(formData: FormData) {
+  const locale = String(formData.get("locale"));
+  const storeId = String(formData.get("storeId"));
+  const back = `/${isLocale(locale) ? locale : "fr"}/account/stores/${encodeURIComponent(storeId)}`;
+  const token = await sessionToken();
+  if (!token) redirect(back);
+  const niu = String(formData.get("niu") ?? "").trim();
+  const result = await submitKyc(apiUrl, token, webOrigin, storeId, {
+    tier: Number(formData.get("tier")),
+    mobileMoneyNumber: String(formData.get("mobileMoneyNumber") ?? ""),
+    location: String(formData.get("location") ?? "").trim(),
+    ...(niu ? { niu } : {}),
+  });
+  redirect(
+    `${back}?verification=${result.ok ? "kyc_submitted" : `kyc_error_${result.error ?? "unknown"}`}`,
   );
 }
