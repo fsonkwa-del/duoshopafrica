@@ -686,4 +686,3 @@ Plan de conformité validé par l'utilisateur le 10 novembre 2026 (`docs/complia
   - écriture directe refusée au runtime ;
   - chevauchement refusé même au propriétaire.
 - Suites complètes : lint, typecheck, 76 tests unitaires, 173 sur base réelle (base 19, API 152, worker 2).
-

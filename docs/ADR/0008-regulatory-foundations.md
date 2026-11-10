@@ -36,4 +36,3 @@ Les lots de conformité introduisent de nombreuses valeurs réglementaires : TVA
 - Approbation : le rôle propriétaire de la clé propose, puis un autre membre ADMIN ou FINANCE approuve. Ces quatre clés appartiennent à ADMIN.
 - Écran d'administration « Paramètres réglementaires » en français et en anglais, avec les routes `/v1/admin/parameters`.
 - `pnpm db:down <migration>` et `pnpm db:roundtrip`, exécuté en CI. `pnpm check:outbound`, exécuté en CI.
-
