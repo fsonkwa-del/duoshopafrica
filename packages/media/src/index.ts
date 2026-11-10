@@ -1,11 +1,19 @@
 export {
+  clamdScanner,
+  type Scanner,
+  type ScanResult,
+  scannerFromEnv,
+} from "./antivirus";
+export {
   type AcceptedImage,
   MAX_INPUT_PIXELS,
   MAX_UPLOAD_BYTES,
+  makeThumbnail,
   OUTPUT_MAX_EDGE,
   type ProcessOutcome,
   processImage,
   sniffImage,
+  THUMB_MAX_EDGE,
 } from "./image";
 export {
   MemoryStorage,

@@ -83,3 +83,18 @@ Deux voies avancent en parallèle : le **produit** (code applicatif) et l'**infr
 - Il ne choisit pas de prestataire agréé pour le séquestre, ne signe aucun contrat et ne crée aucune ressource payante.
 - Il ne rédige ni CGU, ni CGV, ni politique de confidentialité : le produit affichera les textes fournis par le juriste, versionnés.
 - Il ne remplace ni l'avis d'un juriste, ni celui d'un expert-comptable, ni la déclaration éventuelle auprès de l'autorité de protection des données.
+
+## Avancement (10 novembre 2026)
+
+| Lot                                  | Branche                        | État                                                                       |
+| ------------------------------------ | ------------------------------ | -------------------------------------------------------------------------- |
+| 0. Socle                             | `compliance/lot-0-foundations` | Livré, CI verte                                                            |
+| 7. Adaptations juridiques            | `compliance/lot-7-legal`       | Livré, CI verte                                                            |
+| 2. Droits et consentement            | `compliance/lot-2-privacy`     | Livré, CI verte                                                            |
+| 3. Mode d'encaissement               | `compliance/lot-3-collection`  | Livré ; un échec E2E intermittent en CI, corrigé au lot 5                  |
+| 4. Comptabilité et TVA               | `compliance/lot-4-accounting`  | Livré, CI verte                                                            |
+| 5. KYC par niveaux                   | `compliance/lot-5-kyc`         | Livré                                                                      |
+| 1 et 8. Localisation et exploitation | `compliance/lot-1-8-infra`     | Partie logicielle et configuration livrées ; hébergeur à choisir           |
+| 6. Reversements                      | —                              | Non commencé : attend un prestataire agréé capable de séquestre (ADR 0014) |
+
+Chaque branche part de la précédente : `compliance/lot-1-8-infra` contient l'ensemble.

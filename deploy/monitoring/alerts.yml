@@ -1,0 +1,92 @@
+# Alertes (lot 8, ADR 0016). Les textes ne contiennent aucune donnée personnelle.
+groups:
+  - name: disponibilite
+    rules:
+      - alert: SiteIndisponible
+        expr: probe_success{job="blackbox-https"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          { summary: "{{ $labels.instance }} ne répond plus depuis 5 minutes" }
+      - alert: ApiInjoignable
+        expr: up{job="duoshop-api"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          { summary: "Métriques de l'API illisibles depuis 5 minutes" }
+      - alert: CertificatBientotExpire
+        expr: probe_ssl_earliest_cert_expiry - time() < 14 * 86400
+        labels: { severity: warning }
+        annotations:
+          {
+            summary: "Certificat TLS de {{ $labels.instance }} expire dans moins de 14 jours",
+          }
+  - name: argent
+    rules:
+      - alert: PaiementEnAttenteDepuisUneHeure
+        expr: duoshop_payments_pending_over_1h > 0
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          {
+            summary: "{{ $value }} paiement(s) en attente depuis plus d'une heure",
+          }
+      - alert: JournalComptableDesequilibre
+        expr: duoshop_unbalanced_journals > 0
+        labels: { severity: critical }
+        annotations:
+          { summary: "Écriture comptable déséquilibrée : rapprochement bloqué" }
+      - alert: EvenementsPrestataireEnQuarantaine
+        expr: duoshop_provider_events_quarantined_24h > 0
+        labels: { severity: warning }
+        annotations:
+          {
+            summary: "Événements de paiement mis en quarantaine (24 h) : à examiner",
+          }
+      - alert: PaiementsATraiter
+        expr: duoshop_payments_attention > 0
+        for: 1h
+        labels: { severity: warning }
+        annotations: { summary: "Paiements à traiter (succès tardifs, écarts)" }
+  - name: worker
+    rules:
+      - alert: TacheWorkerArretee
+        expr: duoshop_worker_job_age_seconds{job!~"apply_retention|issue_invoices|recognize_commissions|purge_kyc_documents"} > 600
+        labels: { severity: critical }
+        annotations:
+          { summary: "Tâche {{ $labels.job }} sans passage depuis 10 minutes" }
+      - alert: TacheQuotidienneArretee
+        expr: duoshop_worker_job_age_seconds{job=~"apply_retention|issue_invoices|recognize_commissions|purge_kyc_documents"} > 26 * 3600
+        labels: { severity: warning }
+        annotations:
+          {
+            summary: "Tâche {{ $labels.job }} sans passage depuis plus d'un jour",
+          }
+      - alert: TacheWorkerEnEchec
+        expr: duoshop_worker_job_failed == 1
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "Tâche {{ $labels.job }} en échec" }
+      - alert: FileDePhotosBloquee
+        expr: duoshop_media_pending > 50
+        for: 30m
+        labels: { severity: warning }
+        annotations: { summary: "{{ $value }} photos en attente de traitement" }
+  - name: conformite
+    rules:
+      - alert: DemandesSurLesDonneesEnRetard
+        expr: duoshop_data_requests_overdue > 0
+        labels: { severity: warning }
+        annotations:
+          {
+            summary: "{{ $value }} demande(s) sur les données dépassent leur échéance",
+          }
+      - alert: RestaurationMensuelleEnEchec
+        expr: duoshop_restore_drill_success == 0
+        labels: { severity: critical }
+        annotations: { summary: "L'exercice de restauration a échoué" }
+      - alert: RestaurationMensuelleAbsente
+        expr: time() - duoshop_restore_drill_timestamp_seconds > 35 * 86400
+        labels: { severity: warning }
+        annotations:
+          { summary: "Aucun exercice de restauration depuis plus de 35 jours" }

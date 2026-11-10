@@ -20,9 +20,9 @@ Objectif (ADR 0009) : aucune donnée personnelle hors du Cameroun, sous réserve
 
 ## Flux prévus, non activés
 
-| Flux                                   | Données                                  | Décision                                                     |
-| -------------------------------------- | ---------------------------------------- | ------------------------------------------------------------ |
-| SMS (agrégateur camerounais à choisir) | Numéro, message sans contenu de commande | Lot 8                                                        |
-| E-mail transactionnel                  | Adresse e-mail, message                  | Lot 8 : fournisseur à choisir (conflit avec la localisation) |
-| WhatsApp Business (Meta)               | Numéro, message                          | Désactivé par défaut (hypothèse H4)                          |
-| CDN                                    | Adresse IP des visiteurs                 | Cache locale au Cameroun par défaut (hypothèse H4)           |
+| Flux                                   | Données                                                  | Décision                                                                                                         |
+| -------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| SMS (agrégateur camerounais à choisir) | Numéro, message sans contenu de commande                 | Lot 8                                                                                                            |
+| E-mail transactionnel                  | Adresse e-mail, événement, référence et lien de commande | Adaptateur SMTP livré (lot 8), inactif tant qu'aucun serveur n'est choisi ; déclarer l'hôte ici avant activation |
+| WhatsApp Business (Meta)               | Numéro, message                                          | Désactivé par défaut (hypothèse H4)                                                                              |
+| CDN                                    | Adresse IP des visiteurs                                 | Cache locale au Cameroun par défaut (hypothèse H4)                                                               |

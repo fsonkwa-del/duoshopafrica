@@ -141,6 +141,8 @@ services:
       SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN requis}
       AUTH_DOMAIN: ${AUTH_DOMAIN:?AUTH_DOMAIN requis}
       MEDIA_DOMAIN: ${MEDIA_DOMAIN:?MEDIA_DOMAIN requis}
+      # Adresses autorisées sur la console Zitadel (lot 8) ; par défaut, personne depuis Internet.
+      ADMIN_IPS: ${ADMIN_IPS:-127.0.0.1/32}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

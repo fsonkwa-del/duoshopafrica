@@ -10,7 +10,7 @@ import {
   recognizeDueCommissions,
   releaseExpiredReservations,
 } from "@duoshop/database";
-import { storageFromEnv, vaultFromEnv } from "@duoshop/media";
+import { scannerFromEnv, storageFromEnv, vaultFromEnv } from "@duoshop/media";
 import {
   collectionFromEnv,
   MERCHANT_FIELDS,
@@ -19,13 +19,17 @@ import {
   providersFromEnv,
   reconcilePayments,
 } from "@duoshop/payments";
+import { mailerFromEnv, sendPendingEmails } from "./email-job";
 import { processPendingMedia } from "./media-job";
 
 // Tâches réelles : purge des tentatives de connexion, libération des réservations de stock expirées,
 // traitement des photos (seulement si un stockage objet est configuré), rapprochement des paiements
 // en attente chez les prestataires qui le permettent.
 const PURGE_EVERY_MS = 15 * 60_000;
-const log = (fields: Record<string, unknown>) =>
+const db = createDatabase();
+// Chaque passage de tâche laisse un battement (lot 8) : la supervision alerte si une tâche
+// s'arrête ou échoue. Écriture en arrière-plan : elle ne bloque jamais la tâche.
+const log = (fields: Record<string, unknown>) => {
   console.info(
     JSON.stringify({
       service: "worker",
@@ -33,8 +37,23 @@ const log = (fields: Record<string, unknown>) =>
       ...fields,
     }),
   );
-
-const db = createDatabase();
+  // Une tâche désactivée (pas de configuration) ne laisse pas de battement : pas de fausse alerte.
+  if (typeof fields.job === "string" && fields.status !== "disabled")
+    db.workerHeartbeat
+      .upsert({
+        where: { job: fields.job },
+        create: {
+          job: fields.job,
+          lastRunAt: new Date(),
+          lastStatus: fields.status === "failed" ? "failed" : "ok",
+        },
+        update: {
+          lastRunAt: new Date(),
+          lastStatus: fields.status === "failed" ? "failed" : "ok",
+        },
+      })
+      .catch(() => undefined);
+};
 async function purge() {
   try {
     log({
@@ -81,11 +100,17 @@ async function expireOrders() {
 await expireOrders();
 const orderTimer = setInterval(expireOrders, RELEASE_EVERY_MS);
 const storage = storageFromEnv(process.env);
+// Antivirus (lot 8) : sans clamd configuré, les photos ne sont pas analysées (signalé au démarrage).
+const scan = scannerFromEnv(process.env);
+if (!scan) log({ job: "antivirus", status: "disabled", reason: "no_clamav" });
 const MEDIA_EVERY_MS = 30_000;
 async function processMedia() {
   if (!storage) return;
   try {
-    log({ job: "process_media", ...(await processPendingMedia(db, storage)) });
+    log({
+      job: "process_media",
+      ...(await processPendingMedia(db, storage, new Date(), scan)),
+    });
   } catch (err) {
     log({ job: "process_media", status: "failed", error: String(err) });
   }
@@ -204,6 +229,21 @@ async function purgeKyc() {
 }
 await purgeKyc();
 const kycTimer = setInterval(purgeKyc, 24 * 3600_000);
+// E-mails transactionnels (lot 8) : seulement si un serveur SMTP est configuré.
+const mailer = mailerFromEnv(process.env);
+async function emails() {
+  if (!mailer) return;
+  try {
+    log({
+      job: "send_emails",
+      ...(await sendPendingEmails(db, mailer, process.env.WEB_ORIGIN ?? "")),
+    });
+  } catch (err) {
+    log({ job: "send_emails", status: "failed", error: String(err) });
+  }
+}
+if (!mailer) log({ job: "send_emails", status: "disabled", reason: "no_smtp" });
+const emailTimer = setInterval(emails, 60_000);
 const timer = setInterval(purge, PURGE_EVERY_MS);
 const releaser = setInterval(releaseReservations, RELEASE_EVERY_MS);
 for (const signal of ["SIGINT", "SIGTERM"])
@@ -216,5 +256,6 @@ for (const signal of ["SIGINT", "SIGTERM"])
     clearInterval(retentionTimer);
     clearInterval(accountingTimer);
     clearInterval(kycTimer);
+    clearInterval(emailTimer);
     await db.$disconnect();
   });

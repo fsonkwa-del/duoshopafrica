@@ -9,6 +9,14 @@
 # en HTTP/2 sans TLS (gRPC et console), comme l'exemple officiel de Zitadel.
 {$AUTH_DOMAIN} {
 	encode zstd gzip
+	# Lot 8 : console et API d'administration de Zitadel réservées aux adresses ADMIN_IPS
+	# (bureau de l'équipe, CIDR séparés par des espaces). La connexion des utilisateurs (OIDC,
+	# Login V2, sessions) reste publique ; la configuration scriptée passe par le réseau interne.
+	@admin {
+		path /ui/console* /admin/v1* /management/v1* /system/v1* /zitadel.admin.v1.* /zitadel.management.v1.* /zitadel.system.v1.*
+		not remote_ip {$ADMIN_IPS:127.0.0.1/32}
+	}
+	respond @admin 404
 	@root path /
 	rewrite @root /ui/v2/login/
 	handle /ui/v2/login* {

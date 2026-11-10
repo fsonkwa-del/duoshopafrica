@@ -460,6 +460,8 @@ model ProductMedia {
   status MediaStatus @default(PENDING)
   uploadKey String @unique
   publicKey String?
+  // Vignette 480 px pour les grilles (lot 1, faible débit) ; absente pour les photos anciennes.
+  thumbKey String?
   altFr String
   altEn String
   width Int?
@@ -731,6 +733,8 @@ model Notification {
   data Json
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   readAt DateTime? @db.Timestamptz(3)
+  // Envoyée aussi par e-mail (lot 8) ; null si aucun canal externe n'est configuré.
+  emailedAt DateTime? @db.Timestamptz(3)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, createdAt])
 }
@@ -1162,4 +1166,12 @@ model KycDocument {
   purgedAt DateTime? @db.Timestamptz(3)
   store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
   @@index([storeId, documentType])
+}
+
+// ---------- Exploitation (lot 8, ADR 0016) ----------
+// Dernier passage de chaque tâche du worker : alerte si une tâche ne tourne plus.
+model WorkerHeartbeat {
+  job String @id
+  lastRunAt DateTime @db.Timestamptz(3)
+  lastStatus String
 }

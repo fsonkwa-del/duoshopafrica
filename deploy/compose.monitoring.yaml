@@ -1,0 +1,54 @@
+# Supervision auto-hébergée (lot 8, ADR 0016), sur la machine « app » : aucune donnée ne quitte nos
+# machines. Aucun port publié : Grafana s'ouvre par tunnel SSH (ssh -L 3001:localhost:3001).
+#   docker compose -f deploy/compose.staging.yaml -f deploy/compose.app.yaml \
+#     -f deploy/compose.monitoring.yaml --env-file deploy/production.env up -d
+services:
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      # Rétention courte : machines modestes (paramètre d'exploitation, ADR 0016).
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./monitoring/metrics-token:/etc/prometheus/metrics-token:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    command: [--config.file=/etc/alertmanager/alertmanager.yml]
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    restart: unless-stopped
+  blackbox:
+    image: prom/blackbox-exporter:v0.25.0
+    restart: unless-stopped
+  loki:
+    image: grafana/loki:3.3.2
+    command: [-config.file=/etc/loki/local-config.yaml]
+    volumes:
+      - loki-data:/loki
+    restart: unless-stopped
+  promtail:
+    image: grafana/promtail:3.3.2
+    command: [-config.file=/etc/promtail/config.yml]
+    volumes:
+      - ./monitoring/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana-admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana-admin:/run/secrets/grafana-admin:ro
+    restart: unless-stopped
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:

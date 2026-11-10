@@ -1,0 +1,105 @@
+# Préparation des machines (lot 1, ADR 0009) : indépendante de l'hébergeur.
+#   ansible-playbook -i inventory.ini site.yml
+# Les secrets ne passent jamais par Ansible : ils sont générés sur chaque machine (fichiers *.env,
+# mode 600) ou fournis par l'opérateur, jamais versionnés.
+- name: Base commune (toutes les machines)
+  hosts: all
+  become: true
+  tasks:
+    - name: Paquets de base et mises à jour de sécurité automatiques
+      ansible.builtin.apt:
+        name:
+          [
+            unattended-upgrades,
+            ufw,
+            wireguard,
+            docker.io,
+            docker-compose-v2,
+            chrony,
+          ]
+        state: present
+        update_cache: true
+    - name: SSH par clé seulement, sans root
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/10-duoshop.conf
+        content: |
+          PasswordAuthentication no
+          PermitRootLogin no
+          KbdInteractiveAuthentication no
+        mode: "0644"
+      notify: Reload ssh
+    - name: Pare-feu — refus par défaut en entrée
+      community.general.ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+    - name: Pare-feu — SSH depuis les adresses autorisées
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+        from_ip: "{{ item }}"
+      loop: "{{ ssh_allowed_cidrs.split(',') }}"
+    - name: Pare-feu — WireGuard entre les machines
+      community.general.ufw:
+        rule: allow
+        port: "51820"
+        proto: udp
+    - name: Pare-feu — trafic du tunnel WireGuard
+      community.general.ufw:
+        rule: allow
+        interface: wg0
+        direction: in
+    - name: Fuseau horaire de Douala
+      community.general.timezone:
+        name: Africa/Douala
+  handlers:
+    - name: Reload ssh
+      ansible.builtin.service:
+        name: ssh
+        state: reloaded
+
+- name: Machine applicative (site, API, worker, identité, supervision)
+  hosts: app
+  become: true
+  tasks:
+    - name: Pare-feu — HTTP et HTTPS publics (Caddy seul)
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop: ["80", "443"]
+    - name: Répertoire de l'application
+      ansible.builtin.file:
+        path: /opt/duoshop
+        state: directory
+        mode: "0750"
+
+- name: Machine de base de données
+  hosts: db
+  become: true
+  tasks:
+    - name: Répertoire de la base
+      ansible.builtin.file:
+        path: /opt/duoshop
+        state: directory
+        mode: "0750"
+
+- name: Machine de sauvegarde (second site)
+  hosts: backup
+  become: true
+  tasks:
+    - name: Répertoire des sauvegardes et des métriques de restauration
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0750"
+      loop: [/opt/duoshop, /var/lib/node_exporter/textfile]
+    # Le 1er du mois à 3 h 30 (jour du mois seul : cron additionne jour et jour de semaine).
+    - name: Exercice de restauration mensuel
+      ansible.builtin.cron:
+        name: duoshop restore drill
+        minute: "30"
+        hour: "3"
+        day: "1"
+        job: "/opt/duoshop/scripts/restore-drill.sh >> /var/log/duoshop-restore-drill.log 2>&1"

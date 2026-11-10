@@ -843,3 +843,41 @@ Branche `compliance/lot-5-kyc`, issue du lot 4.
   - consultation sans motif refusée, SUPPORT refusé ; pièce restituée à l'identique, sans cache, journalisée une fois ;
   - plafond appliqué : une deuxième commande de 600 000 FCFA est refusée au-delà de 1 000 000.
 - Suites : lint, typecheck, 82 tests unitaires, 201 tests sur base réelle (base 19, API 180, worker 2).
+
+# Conformité — Lots 1 et 8 : localisation et exploitation (ADR 0009, 0016) — 10 novembre 2026
+
+Branche `compliance/lot-1-8-infra`, issue du lot 5. Aucune ressource payante n'est créée, et rien n'est déployé.
+
+## Livré
+
+- **Profils de production indépendants de l'hébergeur.** Machines `app`, `db` et `backup`, WireGuard, TLS entre machines, pgBackRest, playbook Ansible.
+- **Restauration mensuelle.** Exercice automatisé et contrôles SQL ; la métrique alerte en cas d'échec ou d'absence.
+- **Supervision.** `/metrics` sur jeton, battement de chaque tâche du worker, alertes métier.
+- **Sécurité d'exploitation.** Antivirus ClamAV (photos et pièces KYC), limites de débit partagées par Redis, console Zitadel réservée aux adresses autorisées, contrôle d'exposition en CI.
+- **E-mails transactionnels** par SMTP, minimaux, envoyés une seule fois.
+- **Faible débit : vignettes de 480 px** pour les grilles (nouvelle colonne `thumbKey`, migration réversible). Les photos anciennes gardent leur image complète ; `demo:thumbnails` complète le catalogue de démonstration.
+  - Mesuré (catalogue de démonstration, premier chargement) :
+    - accueil mobile : de 1 454 à 419 Ko ;
+    - résultats mobile : de 2 288 à 604 Ko ;
+    - bureau : de 3 100 à environ 785 Ko.
+  - Le socle des pages (HTML, scripts, styles) pèse 159 à 163 Ko.
+  - **Objectif de 200 Ko au total non atteint avec 24 photos par page.** Le test E2E vérifie ce qui est tenu : socle sous 200 Ko, aucune image de grille au-delà de 100 Ko. Prochaine étape proposée : moins d'articles au premier affichage sur mobile.
+- **Défauts évités pendant la rédaction.**
+  - TLS du dépôt de sauvegardes d'abord désactivé, puis rétabli après refus du contrôle de sécurité.
+  - Planification cron qui aurait lancé l'exercice tous les dimanches au lieu d'une fois par mois.
+  - Contrôle « RLS partout » d'abord trop large (référentiels et sessions sont sans RLS par conception) : il porte désormais sur les tables accessibles au rôle applicatif, avec une liste d'exceptions explicite.
+
+## Commandes réellement exécutées
+
+- `drill-checks.sql` sur la base locale : migrations, journal équilibré, RLS et rôle applicatif, tous OK.
+- `check-exposure.mjs` sur des configurations d'essai : port Redis public, socket Docker et port inattendu détectés ; configuration conforme acceptée.
+- `antivirus.test.ts` (3 tests, faux clamd) : flux sain, flux infecté, clamd injoignable (erreur, jamais de passage).
+- `metrics.db.test.ts` : 404 sans jeton, 401 avec un mauvais jeton, compteurs et battements exposés, aucune adresse ni téléphone.
+- `email-job.db.test.ts` : un seul envoi, rien vers une adresse de test, message sans contenu de commande.
+- `pnpm db:roundtrip` : « round trip ok (2636 schema facts) ».
+- Suites : lint, typecheck, 85 tests unitaires, 203 tests sur base réelle (base 19, API 181, worker 3).
+
+## Non vérifié
+
+- Les profils Compose de production, le playbook et `shellcheck` sont contrôlés seulement par la CI : Docker et Ansible sont indisponibles sur le poste.
+- Rien n'a été exécuté sur de vraies machines.

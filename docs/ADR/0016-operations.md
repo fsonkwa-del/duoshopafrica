@@ -1,6 +1,6 @@
 # ADR 0016 — Exploitation : supervision, Redis, antivirus, exposition, notifications
 
-Date : 2026-11-09. Statut : proposé (lot 8). Déployé sur l'infrastructure du lot 1.
+Date : 2026-11-09. Statut : accepté le 2026-11-10 ; livré pour la partie applicative et la configuration (lot 8).
 
 ## Décision
 
@@ -27,3 +27,18 @@ Date : 2026-11-09. Statut : proposé (lot 8). Déployé sur l'infrastructure du 
 ## Conséquences
 
 Plus de services à exploiter sur des machines plus modestes : la supervision doit rester légère (rétention courte des métriques et journaux, paramétrée).
+
+## Mise en œuvre (10 novembre 2026)
+
+- **Métriques.** `/metrics` (format Prometheus) sur jeton `METRICS_TOKEN`. La route n'existe pas sans jeton, et l'API reste interne : le site ne relaie que `/v1/*`. La fonction SQL `ops_metrics` fournit les compteurs, sans donnée personnelle : paiements en attente depuis plus d'une heure, paiements à traiter, événements en quarantaine, journaux déséquilibrés, files de photos et de KYC, demandes en retard, factures échues, âge et état de chaque tâche du worker (table `WorkerHeartbeat`, mise à jour à chaque passage).
+- **Supervision.** `compose.monitoring.yaml` (Prometheus, Alertmanager, Grafana, Loki, Promtail, blackbox), sans port publié. Règles d'alerte dans `deploy/monitoring/alerts.yml`. Destinataires e-mail et SMS à renseigner : aucun fournisseur n'est retenu.
+- **Redis.** Limites de débit partagées si `REDIS_URL` est défini. **Écart avec la décision** : en cas de panne de Redis, la limitation laisse passer partout, y compris sur les routes sensibles. Le module ne permet pas facilement un comportement par route, et l'alerte de supervision signale la panne. À revoir si un refus par défaut est exigé.
+- **ClamAV.** Client `INSTREAM` sans dépendance. Pièces KYC analysées avant chiffrement ; photos analysées en quarantaine (fichier infecté rejeté et supprimé). Une panne de clamd laisse la photo en attente au lieu de la laisser passer.
+- **Exposition.**
+  - `scripts/check-exposure.mjs` (CI) : seul Caddy publie 80 et 443 ; la base et la sauvegarde ne publient que sur l'adresse WireGuard ; aucun service ne monte le socket Docker.
+  - `scripts/check-exposure-remote.sh` vérifie la même chose depuis l'extérieur.
+  - Caddy réserve la console et les API d'administration de Zitadel aux adresses `ADMIN_IPS` (par défaut, personne depuis Internet).
+- **Notifications.** E-mails transactionnels (SMTP) des notifications de commande : événement, référence et lien seulement ; un seul envoi ; jamais vers une adresse anonymisée ou de test ; inactifs sans serveur SMTP.
+  - **SMS** : aucun agrégateur retenu, pas d'adaptateur écrit.
+  - **WhatsApp** : non activé (conflit avec la localisation, H4).
+- **CI.** Nouveau job `infra` : profils Compose valides, contrôle d'exposition, `ansible-playbook --syntax-check`, `shellcheck`.

@@ -104,7 +104,8 @@ export async function storefrontRoutes(
                  product_units_sold(p."id") AS "sold",
                  extract(year FROM s."createdAt")::int AS "storeSince",
                  coalesce(stock.available, 0)::int AS "available",
-                 img."publicKey" AS "imageKey", img."altFr", img."altEn", img."width", img."height"
+                 coalesce(img."thumbKey", img."publicKey") AS "imageKey", img."altFr", img."altEn",
+                 img."width", img."height"
             FROM "Product" p
             JOIN "Store" s ON s."id" = p."storeId"
             JOIN LATERAL (
@@ -118,7 +119,7 @@ export async function storefrontRoutes(
                WHERE v."productId" = p."id" AND v."active"
             ) stock ON true
             LEFT JOIN LATERAL (
-              SELECT m."publicKey", m."altFr", m."altEn", m."width", m."height"
+              SELECT m."publicKey", m."thumbKey", m."altFr", m."altEn", m."width", m."height"
                 FROM "ProductMedia" m
                WHERE m."productId" = p."id" AND m."status" = 'READY'
                ORDER BY m."position" LIMIT 1

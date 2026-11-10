@@ -1,0 +1,18 @@
+# Envoi des alertes (lot 8) : e-mail par le serveur SMTP retenu, et SMS par la passerelle du
+# fournisseur local choisi (aucun n'est encore retenu : adresses à renseigner sur le serveur).
+route:
+  receiver: equipe
+  group_by: [alertname]
+  group_wait: 1m
+  repeat_interval: 4h
+receivers:
+  - name: equipe
+    email_configs:
+      - to: ALERT_EMAIL_TO
+        from: ALERT_EMAIL_FROM
+        smarthost: SMTP_HOST:587
+        require_tls: true
+    webhook_configs:
+      # Passerelle SMS du fournisseur local (à configurer) ; désactivée tant que non renseignée.
+      - url: http://127.0.0.1:9/sms-gateway-not-configured
+        send_resolved: false

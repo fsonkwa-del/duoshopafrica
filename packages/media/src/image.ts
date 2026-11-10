@@ -32,6 +32,20 @@ export type ProcessOutcome =
 
 // Réencode en WebP : orientation appliquée, taille bornée, AUCUNE métadonnée conservée
 // (EXIF, GPS, XMP, ICC hors sRGB) — sharp les supprime tant que withMetadata() n'est pas appelé.
+// Vignette des grilles (lot 1, faible débit) : 480 px au plus, depuis l'image déjà réencodée.
+export const THUMB_MAX_EDGE = 480;
+export async function makeThumbnail(processed: Buffer): Promise<Buffer> {
+  return sharp(processed)
+    .resize({
+      width: THUMB_MAX_EDGE,
+      height: THUMB_MAX_EDGE,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: 70 })
+    .toBuffer();
+}
+
 export async function processImage(input: Buffer): Promise<ProcessOutcome> {
   if (input.byteLength > MAX_UPLOAD_BYTES)
     return { ok: false, reason: "too_large" };

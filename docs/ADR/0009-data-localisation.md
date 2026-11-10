@@ -1,6 +1,6 @@
 # ADR 0009 — Localisation des données au Cameroun
 
-Date : 2026-11-09. Statut : proposé (lot 1).
+Date : 2026-11-09. Statut : accepté le 2026-11-10 ; livré pour la partie indépendante de l'hébergeur (lot 1).
 
 ## Contexte
 
@@ -36,3 +36,19 @@ Aujourd'hui, tout tourne sur un seul serveur Hetzner en Allemagne, base comprise
 - L'hébergement local coûtera probablement plus cher, avec moins de services managés. L'exploitation de PostgreSQL et des sauvegardes reste à notre charge.
 - Le domaine Zitadel et les certificats Let's Encrypt fonctionnent pareil. Let's Encrypt ne reçoit que des noms de domaine, aucune donnée personnelle.
 - Fapshi reçoit des données de paiement. Le lieu d'hébergement de Fapshi est à demander (question P6).
+
+## Mise en œuvre (10 novembre 2026)
+
+- **Profils de déploiement** (`deploy/production/README.md`) : machines `app`, `db` et `backup` reliées par WireGuard.
+  - `compose.app.yaml` s'applique par-dessus la pré-production, sans base locale, et ajoute Redis et ClamAV.
+  - `compose.db.yaml` : PostgreSQL 17 avec pgBackRest, TLS obligatoire, écoute sur l'adresse WireGuard seulement.
+  - `compose.backup.yaml` : dépôt S3 en TLS sur le second site.
+  - Playbook Ansible : SSH par clé, pare-feu par défaut fermé, mises à jour automatiques, Docker, WireGuard, fuseau de Douala.
+- **Sauvegardes.** Configuration pgBackRest (archivage WAL continu, chiffrement côté client, TLS vérifié par une autorité interne). Le premier jet désactivait la vérification TLS du dépôt ; le contrôle de sécurité de l'outil l'a refusé, à raison, et la version livrée la garde active.
+- **Restauration.** `scripts/restore-drill.sh` (mensuel, par cron) restaure dans un conteneur temporaire. `deploy/db/drill-checks.sql` vérifie les migrations, l'équilibre du journal, l'absence de table accessible au rôle applicatif sans RLS (hors exceptions documentées) et le rôle applicatif sans contournement de la RLS. Le script publie une métrique.
+- **Faible débit.** Vignettes de 480 px dans les grilles ; photos en WebP avec un cache d'un an. Le socle des pages tient sous 200 Ko, mais le total avec 24 photos reste de 400 à 800 Ko : **objectif de 200 Ko non atteint** (mesures dans VALIDATION). Les pages HTML ne sont pas mises en cache partagé, car le nonce CSP change à chaque requête.
+- **Flux sortants et registre** : livrés au lot 0 (garde CI) et au lot 2 (registre en base).
+- **Non fait, en attente de décisions.**
+  - Choix et commande d'un hébergeur au Cameroun (ressource payante).
+  - Migration des données et suppression des volumes Hetzner, sur accord explicite.
+  - Exécution réelle du playbook et de l'exercice de restauration sur les machines retenues.

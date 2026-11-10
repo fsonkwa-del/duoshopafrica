@@ -1,0 +1,49 @@
+# Production, machine « app » (lot 1, ADR 0009) : à appliquer par-dessus compose.staging.yaml.
+#   docker compose -f deploy/compose.staging.yaml -f deploy/compose.app.yaml \
+#     --env-file deploy/production.env up -d --build
+# La base n'est plus ici : PostgreSQL tourne sur la machine « db », joignable par WireGuard
+# (DATABASE_URL et ZITADEL_DATABASE_POSTGRES_HOST pointent vers son adresse privée).
+# Ajoute Redis (limites de débit partagées) et ClamAV (antivirus des photos et pièces KYC).
+services:
+  postgres:
+    # Base locale désactivée en production (profil jamais activé sur la machine « app »).
+    profiles: ["local-db"]
+  migrate:
+    depends_on: !reset {}
+  zitadel:
+    depends_on: !reset {}
+    environment:
+      ZITADEL_DATABASE_POSTGRES_HOST: ${DB_HOST:?DB_HOST requis (adresse WireGuard de la base)}
+  api:
+    environment:
+      REDIS_URL: redis://redis:6379
+      CLAMAV_HOST: clamav
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_started }
+      clamav: { condition: service_healthy }
+  worker:
+    environment:
+      CLAMAV_HOST: clamav
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      clamav: { condition: service_healthy }
+  redis:
+    image: redis:7.4.1-alpine
+    # Compteurs de limitation seulement : aucune persistance, mémoire bornée.
+    command: redis-server --save "" --appendonly no --maxmemory 64mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+  clamav:
+    image: clamav/clamav:1.4.1
+    # Signatures mises à jour par freshclam (intégré à l'image) ; analyse via clamd sur 3310.
+    volumes:
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 300s
+    restart: unless-stopped
+volumes:
+  clamav-db:

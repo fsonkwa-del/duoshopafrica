@@ -179,6 +179,36 @@ test('a signed-in person reaches "My data": export, preferences and requests', a
   await expectFitsScreen(page);
 });
 
+// Lot 1 (ADR 0009, faible débit) : le socle de la page (HTML, scripts, styles) reste sous 200 Ko
+// transférés, et les grilles n'emploient que des vignettes (aucune image de plus de 100 Ko).
+// Avec 24 photos de démonstration, le total atteint encore 400 à 800 Ko : écart documenté
+// (VALIDATION, lots 1 et 8), à réduire par moins d'articles au premier affichage sur mobile.
+for (const path of ["/fr", "/fr/products"])
+  test(`low bandwidth budget: ${path}`, async ({ page }) => {
+    await page.goto(path, { waitUntil: "load" });
+    const entries = await page.evaluate(() =>
+      [
+        ...performance.getEntriesByType("navigation"),
+        ...performance.getEntriesByType("resource"),
+      ].map((e) => ({
+        name: e.name,
+        size: (e as PerformanceResourceTiming).transferSize || 0,
+        image: /\.(webp|png|jpe?g|avif)(\?|$)/.test(e.name),
+      })),
+    );
+    const shell = entries
+      .filter((e) => !e.image)
+      .reduce((n, e) => n + e.size, 0);
+    const images = entries.filter((e) => e.image);
+    const total = entries.reduce((n, e) => n + e.size, 0);
+    console.info(
+      `${path}: total ${Math.round(total / 1024)} KB, page ${Math.round(shell / 1024)} KB, ${images.length} images`,
+    );
+    expect(shell).toBeLessThan(200 * 1024);
+    for (const img of images)
+      expect(img.size, img.name).toBeLessThan(100 * 1024);
+  });
+
 test("shoppers browse by category, down to sub-categories, with a breadcrumb", async ({
   page,
 }) => {

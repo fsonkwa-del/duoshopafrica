@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createDatabase } from "@duoshop/database";
-import { processImage } from "@duoshop/media";
+import { makeThumbnail, processImage } from "@duoshop/media";
 
 // DÉVELOPPEMENT UNIQUEMENT : charge un catalogue de démonstration (boutiques DEMO, produits,
 // variantes, stock, photos libres de droits) depuis un manifeste produit par la collecte
@@ -150,6 +150,8 @@ try {
     }
     const file = `${String(index).padStart(2, "0")}-${randomUUID().slice(0, 8)}.webp`;
     writeFileSync(join(mediaDir, file), outcome.data);
+    const thumb = file.replace(/\.webp$/, "-480.webp");
+    writeFileSync(join(mediaDir, thumb), await makeThumbnail(outcome.data));
     await db.productMedia.create({
       data: {
         tenantId: s.tenantId,
@@ -157,6 +159,7 @@ try {
         status: "READY",
         uploadKey: `demo/${randomUUID()}`,
         publicKey: `demo-media/${file}`,
+        thumbKey: `demo-media/${thumb}`,
         altFr: p.title,
         altEn: p.title,
         width: outcome.width,

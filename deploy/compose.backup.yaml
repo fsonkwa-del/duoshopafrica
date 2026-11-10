@@ -1,0 +1,21 @@
+# Production, machine « backup » sur un second site au Cameroun (lot 1, ADR 0009) : dépôt S3 des
+# sauvegardes pgBackRest, en TLS (certificat de l'autorité interne), joignable seulement par
+# WireGuard. L'exercice de restauration mensuel (scripts/restore-drill.sh) tourne aussi ici.
+#   docker compose -f deploy/compose.backup.yaml --env-file deploy/backup.env up -d
+name: duoshop-backup
+services:
+  backup-s3:
+    image: chrislusf/seaweedfs:4.48
+    command: >-
+      server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json
+      -s3.cert.file=/etc/seaweedfs/tls/server.crt -s3.key.file=/etc/seaweedfs/tls/server.key
+      -master.volumeSizeLimitMB=1024 -volume.max=0
+    ports:
+      - "${WG_ADDRESS:?WG_ADDRESS requis}:8333:8333"
+    volumes:
+      - backup-data:/data
+      - ./backup-s3.json:/etc/seaweedfs/s3.json:ro
+      - ./tls:/etc/seaweedfs/tls:ro
+    restart: unless-stopped
+volumes:
+  backup-data:

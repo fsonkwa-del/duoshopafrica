@@ -1,0 +1,15 @@
+# Journaux des conteneurs vers Loki (lot 8), sur la même machine. Les journaux de l'API ne
+# contiennent ni paramètres d'URL, ni secrets, ni téléphones (redaction à la source).
+server:
+  http_listen_port: 9080
+positions:
+  filename: /tmp/positions.yaml
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+scrape_configs:
+  - job_name: containers
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*-json.log

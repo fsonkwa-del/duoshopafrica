@@ -74,6 +74,36 @@ jobs:
           name: e2e-results
           path: .local/e2e-results
           retention-days: 7
+  # Infrastructure (lots 1 et 8) : profils Compose valides, exposition limitée à Caddy,
+  # playbook Ansible syntaxiquement correct, scripts shell vérifiés.
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose profiles and exposure
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd deploy
+          cp staging.env.example staging.env
+          cp zitadel.env.example zitadel.env
+          touch db.env backup.env
+          export POSTGRES_PASSWORD=x SITE_DOMAIN=a.example AUTH_DOMAIN=b.example MEDIA_DOMAIN=c.example \
+            WEB_ORIGIN=https://a.example LOGIN_SESSION_COOKIE_SECRET=x DB_HOST=10.66.0.2 WG_ADDRESS=10.66.0.2
+          for files in "-f compose.staging.yaml" \
+                       "-f compose.staging.yaml -f compose.app.yaml -f compose.monitoring.yaml" \
+                       "-f compose.db.yaml" "-f compose.backup.yaml"; do
+            echo "== $files"
+            docker compose $files --env-file staging.env config --format json --no-interpolate >/dev/null
+            docker compose $files --env-file staging.env config --format json | node ../scripts/check-exposure.mjs
+          done
+      - name: Ansible syntax
+        run: |
+          pip install --quiet ansible-core==2.17.7
+          ansible-galaxy collection install community.general --force >/dev/null
+          ansible-playbook --syntax-check -i deploy/ansible/inventory.example.ini deploy/ansible/site.yml
+      - name: Shell scripts
+        run: shellcheck scripts/restore-drill.sh scripts/check-exposure-remote.sh
   images:
     runs-on: ubuntu-latest
     steps:

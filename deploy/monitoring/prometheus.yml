@@ -1,0 +1,34 @@
+# Collecte (lot 8) : métriques métier de l'API (jeton METRICS_TOKEN, réseau interne seulement),
+# disponibilité du site et de l'identité vue de l'extérieur (blackbox), machines (node-exporter).
+global:
+  scrape_interval: 60s
+  evaluation_interval: 60s
+rule_files: [/etc/prometheus/alerts.yml]
+alerting:
+  alertmanagers:
+    - static_configs: [{ targets: ["alertmanager:9093"] }]
+scrape_configs:
+  - job_name: duoshop-api
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics-token
+    static_configs: [{ targets: ["api:4000"] }]
+  - job_name: blackbox-https
+    metrics_path: /probe
+    params: { module: [http_2xx] }
+    static_configs:
+      - targets:
+          - https://SITE_DOMAIN/fr
+          - https://AUTH_DOMAIN/ui/v2/login/
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+  - job_name: nodes
+    # node-exporter sur chaque machine, joint par WireGuard (adresses de l'inventaire).
+    static_configs:
+      [{ targets: ["10.66.0.1:9100", "10.66.0.2:9100", "10.66.0.3:9100"] }]

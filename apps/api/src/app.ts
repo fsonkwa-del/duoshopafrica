@@ -4,6 +4,7 @@ import type { CollectionSettings, PaymentProviders } from "@duoshop/payments";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import Fastify from "fastify";
+import type { Redis } from "ioredis";
 import { accountRoutes } from "./account";
 import { accountingRoutes } from "./accounting";
 import { cartRoutes } from "./cart";
@@ -17,6 +18,7 @@ import { fulfilmentRoutes } from "./fulfilment";
 import { type KycSettings, kycRoutes } from "./kyc";
 import { mediaRoutes } from "./media";
 import { merchantRoutes } from "./merchant";
+import { metricsRoutes } from "./metrics";
 import { type OidcSettings, oidcRoutes } from "./oidc";
 import { orderRoutes } from "./orders";
 import { parameterRoutes } from "./parameters";
@@ -44,6 +46,10 @@ export interface AppOptions {
   env?: Record<string, string | undefined>;
   // Coffre et clés des pièces KYC (lot 5) ; absent => dépôt de pièces indisponible (503).
   kyc?: KycSettings;
+  // Jeton de lecture des métriques (lot 8) ; absent => /metrics n'existe pas.
+  metricsToken?: string;
+  // Compteurs de limitation partagés entre instances (lot 8) ; absent => mémoire locale.
+  redis?: Redis;
   // Développement uniquement : profils de démonstration quand Zitadel est absent.
   devLogin?: boolean;
   // Nombre de reverse proxies de confiance devant l'API (IP réelle pour rate limit et logs).
@@ -61,6 +67,8 @@ export async function createApp({
   collection = defaultCollection,
   env = process.env,
   kyc,
+  metricsToken,
+  redis,
   devLogin = false,
   trustProxy = 0,
 }: AppOptions = {}) {
@@ -153,7 +161,13 @@ export async function createApp({
           : "request_failed";
     reply.code(statusCode).send({ error: code, requestId: request.id });
   });
-  await app.register(rateLimit, { global: false });
+  // Redis (lot 8) : limites communes à toutes les instances. Redis indisponible => la limite
+  // laisse passer (skipOnError) plutôt que de bloquer tout le site ; l'alerte de supervision
+  // signale la panne.
+  await app.register(rateLimit, {
+    global: false,
+    ...(redis ? { redis, skipOnError: true, nameSpace: "duoshop-rl:" } : {}),
+  });
   if (db) {
     await app.register(accountRoutes, { db, webOrigin });
     await app.register(merchantRoutes, { db, webOrigin });
@@ -183,6 +197,10 @@ export async function createApp({
     await app.register(collectionRoutes, { db, webOrigin, collection, env });
     await app.register(accountingRoutes, { db, webOrigin });
     await app.register(kycRoutes, { db, webOrigin, ...(kyc ? { kyc } : {}) });
+    await app.register(metricsRoutes, {
+      db,
+      ...(metricsToken ? { token: metricsToken } : {}),
+    });
     await app.register(fulfilmentRoutes, { db, webOrigin });
     await app.register(financeRoutes, { db, webOrigin });
     await app.register(parameterRoutes, { db, webOrigin });
