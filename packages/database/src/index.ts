@@ -15,6 +15,13 @@ export {
 } from "./maintenance";
 export { completeMedia, type PendingMedia, pendingMedia } from "./media";
 export {
+  decideParameter,
+  type ParameterDecision,
+  type ParameterRefusal,
+  parameterRefusal,
+  proposeParameter,
+} from "./parameters";
+export {
   applyPaymentEvent,
   type PaymentEventInput,
   pendingProviderPayments,

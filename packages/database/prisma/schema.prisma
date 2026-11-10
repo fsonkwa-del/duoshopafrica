@@ -90,6 +90,11 @@ enum PaymentMethodKind {
   BANK_TRANSFER
   WALLET
 }
+// Statut de validation d'un paramètre réglementaire par un professionnel (ADR 0008).
+enum ParameterStatus {
+  A_VALIDER
+  VALIDE
+}
 // MOCK : simulateur local sans argent ; SANDBOX : test prestataire ; LIVE : production.
 enum PaymentMode {
   MOCK
@@ -226,6 +231,7 @@ model Store {
   products Product[]
   locations InventoryLocation[]
   sellerOrders SellerOrder[]
+  parameters RegulatoryParameter[]
   @@unique([tenantId, id])
 }
 model StoreMember {
@@ -809,4 +815,38 @@ model Category {
   children Category[] @relation("CategoryTree")
   products Product[]
   @@index([parentId, position])
+}
+
+// ---------- Paramètres réglementaires datés (lot 0, ADR 0008) ----------
+// Écritures uniquement par propose_parameter / decide_parameter (deux personnes distinctes).
+model ParameterDefinition {
+  key String @id
+  kind String
+  ownerRole PlatformRole
+  storeScoped Boolean @default(false)
+  minValue String?
+  maxValue String?
+  labelFr String
+  labelEn String
+  values RegulatoryParameter[]
+}
+model RegulatoryParameter {
+  id String @id @default(uuid()) @db.Uuid
+  key String
+  definition ParameterDefinition @relation(fields: [key], references: [key])
+  storeId String? @db.Uuid
+  store Store? @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  value Json
+  effectiveFrom DateTime @db.Timestamptz(3)
+  effectiveTo DateTime? @db.Timestamptz(3)
+  legalBasis String?
+  validationStatus ParameterStatus @default(A_VALIDER)
+  proposedBy String? @db.Uuid
+  proposedAt DateTime @default(now()) @db.Timestamptz(3)
+  approvedBy String? @db.Uuid
+  approvedAt DateTime? @db.Timestamptz(3)
+  rejectedBy String? @db.Uuid
+  rejectedAt DateTime? @db.Timestamptz(3)
+  rejectReason String?
+  @@index([key, storeId, effectiveFrom])
 }

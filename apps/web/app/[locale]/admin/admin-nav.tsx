@@ -83,6 +83,11 @@ export function AdminNav({
           icon: <TagIcon />,
         },
         { href: href("finance"), text: t.finance.nav, icon: <OrdersIcon /> },
+        {
+          href: href("parameters"),
+          text: t.parameters.nav,
+          icon: <ShieldIcon />,
+        },
       ]}
     />
   );

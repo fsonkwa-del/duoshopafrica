@@ -103,6 +103,7 @@ test("a buyer never reaches platform administration", async ({ browser }) => {
     "/fr/admin/verifications",
     "/fr/admin/finance",
     "/fr/admin/claims",
+    "/fr/admin/parameters",
   ]) {
     await page.goto(resolve(path));
     await expect(
@@ -124,6 +125,27 @@ test("an admin without the finance role cannot change commission rules", async (
   await expect(
     page.getByRole("button", { name: "Créer la règle" }),
   ).toHaveCount(0);
+});
+
+test("an admin sees the dated regulatory parameters and may only propose a value", async ({
+  browser,
+}) => {
+  const context = await browser.newContext(deviceOptions());
+  await signIn(context, seedData().adminToken);
+  const page = await context.newPage();
+  await page.goto("/fr/admin/parameters");
+  await expect(
+    page.getByRole("heading", { name: "Paramètres réglementaires", level: 1 }),
+  ).toBeVisible();
+  const claims = page.getByRole("row", {
+    name: /Délai de réclamation après la remise/,
+  });
+  await expect(claims).toContainText("7 days");
+  await expect(claims).toContainText("À valider");
+  await expect(
+    page.getByRole("button", { name: "Soumettre pour approbation" }),
+  ).toBeVisible();
+  await expectFitsScreen(page);
 });
 
 test("shoppers browse by category, down to sub-categories, with a breadcrumb", async ({

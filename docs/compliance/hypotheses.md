@@ -4,29 +4,29 @@ Aucune de ces hypothèses n'a été vérifiée par un professionnel. Le produit 
 
 Statuts possibles : `À VALIDER PAR JURISTE`, `À VALIDER PAR EXPERT-COMPTABLE`, `À VALIDER PAR LE PRESTATAIRE`, puis `VALIDÉ` avec le nom, la date et la référence de l'avis.
 
-| N° | Hypothèse | Utilisée par | Statut |
-| --- | --- | --- | --- |
-| H1 | La loi n° 2024/017 du 23 décembre 2024 encadre la protection des données personnelles au Cameroun et s'applique à la plateforme | ADR 0009, 0010 | À VALIDER PAR JURISTE |
-| H2 | Cette loi impose de stocker et traiter les données personnelles sur le territoire camerounais (portée, exceptions, transferts autorisés) | ADR 0009 | À VALIDER PAR JURISTE |
-| H3 | Les données de test actuellement hébergées en Allemagne doivent être rapatriées ou supprimées avant tout lancement | ADR 0009 | À VALIDER PAR JURISTE |
-| H4 | Une adresse IP est une donnée personnelle ; un CDN ou WhatsApp (Meta) hors du Cameroun constitue un transfert | ADR 0009, 0016 | À VALIDER PAR JURISTE |
-| H5 | Les bases légales retenues : contrat (commande), obligation légale (comptabilité, KYC), consentement (marketing) | ADR 0010 | À VALIDER PAR JURISTE |
-| H6 | Les droits d'accès, de rectification, d'effacement et de portabilité existent, avec un délai de réponse à fixer | ADR 0010 | À VALIDER PAR JURISTE |
-| H7 | Une déclaration ou autorisation préalable auprès de l'autorité de protection des données est nécessaire | ADR 0009, 0010 | À VALIDER PAR JURISTE |
-| H8 | L'anonymisation suffit à satisfaire une demande d'effacement quand une obligation de conservation s'applique | ADR 0010 | À VALIDER PAR JURISTE |
-| H9 | Les durées de conservation initiales : comptes inactifs 3 ans, paniers visiteurs 30 jours, journaux techniques 12 mois | ADR 0010 | À VALIDER PAR JURISTE |
-| H10 | Encaisser pour le compte des vendeurs puis leur reverser relève des services de paiement du règlement n° 04/18/CEMAC/UMAC/COBAC, et exige un agrément ou un établissement agréé | ADR 0011 | À VALIDER PAR JURISTE |
-| H11 | En mode direct, la plateforme qui initie un paiement vers le compte du vendeur et facture une commission ne détient pas de fonds de tiers | ADR 0011 | À VALIDER PAR JURISTE |
-| H12 | La TVA applicable à la commission est de 19,25 % (taux principal et centimes additionnels communaux) | ADR 0012 | À VALIDER PAR EXPERT-COMPTABLE |
-| H13 | La commission est la base taxable, et non le prix des articles vendus | ADR 0012 | À VALIDER PAR EXPERT-COMPTABLE |
-| H14 | Le plan de comptes SYSCOHADA révisé s'applique, avec la correspondance que fournira l'expert-comptable | ADR 0012 | À VALIDER PAR EXPERT-COMPTABLE |
-| H15 | La commission peut être constatée à la remise ou à la fin du délai de réclamation, selon le choix comptable | ADR 0012 | À VALIDER PAR EXPERT-COMPTABLE |
-| H16 | La facture de commission exige une numérotation continue et les NIU des deux parties | ADR 0012 | À VALIDER PAR EXPERT-COMPTABLE |
-| H17 | Les pièces KYC par niveau (CNI, NIU, RCCM, statuts, attestation de conformité fiscale) sont adaptées et suffisantes | ADR 0013 | À VALIDER PAR JURISTE |
-| H18 | Les pièces KYC se conservent 10 ans après la fin de la relation | ADR 0013 | À VALIDER PAR JURISTE |
-| H19 | Une photo du visage comparée par un agent humain ne constitue pas un traitement biométrique au sens de la loi | ADR 0013 | À VALIDER PAR JURISTE |
-| H20 | Des plafonds de ventes mensuels par niveau KYC sont pertinents ; leurs montants sont à fixer | ADR 0013 | À VALIDER PAR JURISTE |
-| H21 | La loi n° 2010/021 sur le commerce électronique impose des mentions sur l'identité du vendeur, les prix, les frais et les réclamations (liste exacte à fournir) | ADR 0015 | À VALIDER PAR JURISTE |
-| H22 | La médiation par la plateforme est licite si elle n'empêche pas de saisir la juridiction compétente | ADR 0015 | À VALIDER PAR JURISTE |
-| H23 | Un délai de réclamation contractuel de 7 jours peut coexister avec la garantie légale | ADR 0015 | À VALIDER PAR JURISTE |
-| H24 | Les frais Fapshi sont de 3 % par encaissement (documentation publique) | ADR 0012 | À VALIDER PAR LE PRESTATAIRE |
+| N°  | Hypothèse                                                                                                                                                                       | Utilisée par   | Statut                         |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------ |
+| H1  | La loi n° 2024/017 du 23 décembre 2024 encadre la protection des données personnelles au Cameroun et s'applique à la plateforme                                                 | ADR 0009, 0010 | À VALIDER PAR JURISTE          |
+| H2  | Cette loi impose de stocker et traiter les données personnelles sur le territoire camerounais (portée, exceptions, transferts autorisés)                                        | ADR 0009       | À VALIDER PAR JURISTE          |
+| H3  | Les données de test actuellement hébergées en Allemagne doivent être rapatriées ou supprimées avant tout lancement                                                              | ADR 0009       | À VALIDER PAR JURISTE          |
+| H4  | Une adresse IP est une donnée personnelle ; un CDN ou WhatsApp (Meta) hors du Cameroun constitue un transfert                                                                   | ADR 0009, 0016 | À VALIDER PAR JURISTE          |
+| H5  | Les bases légales retenues : contrat (commande), obligation légale (comptabilité, KYC), consentement (marketing)                                                                | ADR 0010       | À VALIDER PAR JURISTE          |
+| H6  | Les droits d'accès, de rectification, d'effacement et de portabilité existent, avec un délai de réponse à fixer                                                                 | ADR 0010       | À VALIDER PAR JURISTE          |
+| H7  | Une déclaration ou autorisation préalable auprès de l'autorité de protection des données est nécessaire                                                                         | ADR 0009, 0010 | À VALIDER PAR JURISTE          |
+| H8  | L'anonymisation suffit à satisfaire une demande d'effacement quand une obligation de conservation s'applique                                                                    | ADR 0010       | À VALIDER PAR JURISTE          |
+| H9  | Les durées de conservation initiales : comptes inactifs 3 ans, paniers visiteurs 30 jours, journaux techniques 12 mois                                                          | ADR 0010       | À VALIDER PAR JURISTE          |
+| H10 | Encaisser pour le compte des vendeurs puis leur reverser relève des services de paiement du règlement n° 04/18/CEMAC/UMAC/COBAC, et exige un agrément ou un établissement agréé | ADR 0011       | À VALIDER PAR JURISTE          |
+| H11 | En mode direct, la plateforme qui initie un paiement vers le compte du vendeur et facture une commission ne détient pas de fonds de tiers                                       | ADR 0011       | À VALIDER PAR JURISTE          |
+| H12 | La TVA applicable à la commission est de 19,25 % (taux principal et centimes additionnels communaux)                                                                            | ADR 0012       | À VALIDER PAR EXPERT-COMPTABLE |
+| H13 | La commission est la base taxable, et non le prix des articles vendus                                                                                                           | ADR 0012       | À VALIDER PAR EXPERT-COMPTABLE |
+| H14 | Le plan de comptes SYSCOHADA révisé s'applique, avec la correspondance que fournira l'expert-comptable                                                                          | ADR 0012       | À VALIDER PAR EXPERT-COMPTABLE |
+| H15 | La commission peut être constatée à la remise ou à la fin du délai de réclamation, selon le choix comptable                                                                     | ADR 0012       | À VALIDER PAR EXPERT-COMPTABLE |
+| H16 | La facture de commission exige une numérotation continue et les NIU des deux parties                                                                                            | ADR 0012       | À VALIDER PAR EXPERT-COMPTABLE |
+| H17 | Les pièces KYC par niveau (CNI, NIU, RCCM, statuts, attestation de conformité fiscale) sont adaptées et suffisantes                                                             | ADR 0013       | À VALIDER PAR JURISTE          |
+| H18 | Les pièces KYC se conservent 10 ans après la fin de la relation                                                                                                                 | ADR 0013       | À VALIDER PAR JURISTE          |
+| H19 | Une photo du visage comparée par un agent humain ne constitue pas un traitement biométrique au sens de la loi                                                                   | ADR 0013       | À VALIDER PAR JURISTE          |
+| H20 | Des plafonds de ventes mensuels par niveau KYC sont pertinents ; leurs montants sont à fixer                                                                                    | ADR 0013       | À VALIDER PAR JURISTE          |
+| H21 | La loi n° 2010/021 sur le commerce électronique impose des mentions sur l'identité du vendeur, les prix, les frais et les réclamations (liste exacte à fournir)                 | ADR 0015       | À VALIDER PAR JURISTE          |
+| H22 | La médiation par la plateforme est licite si elle n'empêche pas de saisir la juridiction compétente                                                                             | ADR 0015       | À VALIDER PAR JURISTE          |
+| H23 | Un délai de réclamation contractuel de 7 jours peut coexister avec la garantie légale                                                                                           | ADR 0015       | À VALIDER PAR JURISTE          |
+| H24 | Les frais Fapshi sont de 3 % par encaissement (documentation publique)                                                                                                          | ADR 0012       | À VALIDER PAR LE PRESTATAIRE   |

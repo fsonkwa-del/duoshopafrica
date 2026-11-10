@@ -23,6 +23,7 @@ import {
   type MoneyDTO,
   type NotificationDTO,
   type OrderDTO,
+  type ParametersDTO,
   type PaymentDTO,
   type PaymentMethodOptionDTO,
   type PaymentModeDTO,
@@ -617,6 +618,38 @@ export const closeCommissionRule = (
     `/v1/admin/commission-rules/${encodeURIComponent(ruleId)}/close`,
     sessionToken,
     { origin, body: { validTo } },
+  );
+export const getParameters = (baseUrl: string, sessionToken: string) =>
+  authorized<ParametersDTO>(baseUrl, "/v1/admin/parameters", sessionToken);
+export const proposeParameter = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: {
+    key: string;
+    storeId?: string;
+    value: string;
+    effectiveFrom: string;
+    legalBasis?: string;
+    validated: boolean;
+  },
+) =>
+  authorized<{ id: string }>(baseUrl, "/v1/admin/parameters", sessionToken, {
+    origin,
+    body,
+  });
+export const decideParameter = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  parameterId: string,
+  body: { approve: boolean; reason?: string },
+) =>
+  authorized<{ outcome: string }>(
+    baseUrl,
+    `/v1/admin/parameters/${encodeURIComponent(parameterId)}/decide`,
+    sessionToken,
+    { origin, body },
   );
 export const getFinanceReport = (
   baseUrl: string,

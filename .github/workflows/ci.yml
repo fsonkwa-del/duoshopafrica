@@ -28,7 +28,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - run: pnpm db:validate
+      # Flux sortants : tout hôte externe doit être déclaré (docs/compliance/flux-sortants.md).
+      - run: pnpm check:outbound
       - run: pnpm db:deploy
+      # Migrations réversibles (ADR 0008) : montée → descente → montée, schéma identique.
+      - run: pnpm db:roundtrip
       - run: pnpm db:seed
       # En cas d'échec, les tests en erreur deviennent des annotations (lisibles sans connexion).
       - shell: bash

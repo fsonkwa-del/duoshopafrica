@@ -10,7 +10,6 @@ import {
   canOpenClaim,
   claimHoldsPayout,
   normalizeCameroonPhone,
-  ORDER_PAYMENT_WINDOW_MS,
   parsePriceMinor,
   roundCoordinate,
 } from "@duoshop/domain";
@@ -191,6 +190,7 @@ type OrderRow = Awaited<ReturnType<ScopedTx["order"]["findMany"]>>[number] & {
     events?: Awaited<ReturnType<ScopedTx["fulfilmentEvent"]["findMany"]>>;
     handover?: { code: string } | null;
     claims?: Parameters<typeof claimView>[0][];
+    claimDeadline?: Date | null;
   })[];
   payments: Awaited<ReturnType<ScopedTx["payment"]["findMany"]>>;
 };
@@ -215,7 +215,8 @@ function sellerOrderView(
     claimable:
       canOpenClaim({
         fulfilmentStatus: so.fulfilmentStatus,
-        deliveredAt: so.deliveredAt,
+        claimDeadline:
+          "claimDeadline" in so ? (so.claimDeadline ?? null) : null,
         now: new Date(),
       }) && !(so.claims ?? []).some((c) => claimHoldsPayout(c.status)),
     claims: (so.claims ?? []).map(claimView),
@@ -233,6 +234,26 @@ function sellerOrderView(
     })),
   };
 }
+// Échéance de réclamation : délai en vigueur à la date de remise (paramètre claims.window).
+async function withClaimDeadlines(
+  tx: ScopedTx,
+  orders: OrderRow[],
+): Promise<OrderRow[]> {
+  const ids = orders.flatMap((o) =>
+    o.sellerOrders.filter((so) => so.deliveredAt).map((so) => so.id),
+  );
+  if (ids.length === 0) return orders;
+  const rows = await tx.$queryRaw<{ id: string; deadline: Date }[]>`
+    SELECT so."id", so."deliveredAt" + param_interval('claims.window', so."deliveredAt") AS deadline
+      FROM "SellerOrder" so
+     WHERE so."id" = ANY(${ids}::uuid[]) AND so."deliveredAt" IS NOT NULL`;
+  const deadlines = new Map(rows.map((r) => [r.id, r.deadline]));
+  for (const o of orders)
+    for (const so of o.sellerOrders)
+      so.claimDeadline = deadlines.get(so.id) ?? null;
+  return orders;
+}
+
 function orderView(o: OrderRow): OrderDTO {
   return {
     id: o.id,
@@ -656,7 +677,11 @@ export async function orderRoutes(
           if (quote.total.toString() !== body.expectedTotalMinor)
             throw new CheckoutRefusal("total_changed");
           const orderId = randomUUID();
-          const expiresAt = new Date(Date.now() + ORDER_PAYMENT_WINDOW_MS);
+          // Délai de paiement en vigueur (paramètre daté order.payment_window).
+          const [window] = await tx.$queryRaw<{ at: Date }[]>`
+            SELECT now() + param_interval('order.payment_window') AS at`;
+          if (!window) throw new Error("order.payment_window unavailable");
+          const expiresAt = window.at;
           const currency = quote.cart.currency;
           // Réservation de chaque ligne : un seul refus annule toute la commande (transaction).
           for (const g of quote.groups)
@@ -757,13 +782,19 @@ export async function orderRoutes(
     async (request, reply) => {
       const principal = await requirePrincipal(db, request, reply);
       if (!principal) return reply;
-      const rows = (await asRuntime(db, { userId: principal.userId }, (tx) =>
-        tx.order.findMany({
-          orderBy: { createdAt: "desc" },
-          take: 50,
-          include: orderInclude,
-        }),
-      )) as OrderRow[];
+      const rows = await asRuntime(
+        db,
+        { userId: principal.userId },
+        async (tx) =>
+          withClaimDeadlines(
+            tx,
+            (await tx.order.findMany({
+              orderBy: { createdAt: "desc" },
+              take: 50,
+              include: orderInclude,
+            })) as OrderRow[],
+          ),
+      );
       return { orders: rows.map(orderView) };
     },
   );
@@ -784,9 +815,17 @@ export async function orderRoutes(
       const principal = await requirePrincipal(db, request, reply);
       if (!principal) return reply;
       const { orderId } = request.params as { orderId: string };
-      const order = (await asRuntime(db, { userId: principal.userId }, (tx) =>
-        tx.order.findUnique({ where: { id: orderId }, include: orderInclude }),
-      )) as OrderRow | null;
+      const order = await asRuntime(
+        db,
+        { userId: principal.userId },
+        async (tx) => {
+          const found = (await tx.order.findUnique({
+            where: { id: orderId },
+            include: orderInclude,
+          })) as OrderRow | null;
+          return found ? (await withClaimDeadlines(tx, [found]))[0] : null;
+        },
+      );
       return order
         ? orderView(order)
         : reply.code(404).send({ error: "not_found" });

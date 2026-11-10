@@ -649,3 +649,41 @@ Premier passage sur GitHub Actions (Linux, Node 24, PostgreSQL 17.6, base neuve)
 - **Photos (03/11/2026)** : SeaweedFS 4.48 ajouté au Compose (`MEDIA_DOMAIN`, CORS limité au site, signatures vérifiées derrière Caddy, lecture anonyme du seul bucket public, buckets `duoshop-quarantine` et `duoshop-public`).
   - **Défaut trouvé** : le SDK AWS (sommes de contrôle par défaut) signait dans chaque URL présignée le CRC32 d'un corps vide ; tout envoi réel de photo échouait (`BadDigest`), sur SeaweedFS comme sur Amazon S3. Correctif : `requestChecksumCalculation: "WHEN_REQUIRED"` dans `packages/media/src/storage.ts`, test `storage.test.ts`.
   - Vérifié en ligne avec le code de l'application : envoi présigné 200 avec en-tête CORS du site ; taille différente 403 ; type différent 403 ; lecture anonyme de la quarantaine 403 ; lecture publique 200 ; origine étrangère refusée au pré-vol CORS ; CSP `img-src` et `connect-src` incluent le domaine des photos.
+
+# Conformité — Lot 0 : socle (ADR 0008) — 10 novembre 2026
+
+Plan de conformité validé par l'utilisateur le 10 novembre 2026 (`docs/compliance/PLAN.md`, ADR 0008 à 0016). Branche `compliance/lot-0-foundations`.
+
+## Livré
+
+- **Paramètres réglementaires datés** :
+  - migration `202611170001_regulatory_parameters` ;
+  - lecture à la date de l'événement ;
+  - proposition par le rôle propriétaire, approbation par une autre personne ;
+  - jamais rétroactif, sans chevauchement garanti par la base, audité.
+- **Constantes remplacées** : délai de paiement (30 min), tentative de paiement (10 min), délai de réclamation (7 jours, lu à la date de remise), paniers visiteurs (30 jours). Les valeurs sont identiques, toutes « à valider ».
+- **Écran d'administration** « Paramètres réglementaires » en français et en anglais : valeur en vigueur, propositions, historique.
+- **Migrations réversibles** : `down.sql`, `pnpm db:down`, `pnpm db:roundtrip`. Le contrôle compare une empreinte du schéma : colonnes, contraintes, index, fonctions, droits, politiques RLS, déclencheurs, enums.
+- **Flux sortants** :
+  - `docs/compliance/flux-sortants.md` ;
+  - `pnpm check:outbound`, qui échoue sur tout hôte externe non déclaré ;
+  - `docs/compliance/registre.md`, première version du registre des traitements.
+- **CI** : contrôle des flux sortants et aller-retour des migrations, avant les tests.
+- `fapshi.db.test.ts` n'était pas dans la liste `test:db` de l'API : ajouté.
+
+## Commandes réellement exécutées
+
+- `pnpm db:deploy`, puis `prisma migrate diff` : aucun écart avec le schéma Prisma.
+- `pnpm db:roundtrip` : descente puis remontée, « round trip ok (1917 schema facts) ».
+- `pnpm check:outbound` : 3 hôtes déclarés en usage. Contrôle négatif : un fichier contenant un hôte inventé fait échouer la commande.
+- `parameters.db.test.ts` (7 tests, base réelle) :
+  - valeurs d'origine ;
+  - accès ADMIN et FINANCE seulement (acheteur 404, SUPPORT 403) ;
+  - refus : mauvais rôle, valeur invalide ou hors bornes, rétroactivité, fondement manquant, clé inconnue ;
+  - approbation par soi-même refusée, refus sans motif refusé, approbation par FINANCE, double décision refusée ;
+  - bascule de valeur à la date d'effet ;
+  - conflit avec une période approuvée ;
+  - écriture directe refusée au runtime ;
+  - chevauchement refusé même au propriétaire.
+- Suites complètes : lint, typecheck, 76 tests unitaires, 173 sur base réelle (base 19, API 152, worker 2).
+

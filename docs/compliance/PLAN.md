@@ -14,17 +14,17 @@ Ce plan réduit nos contraintes réglementaires sans casser les garanties exista
 
 ## Les lots
 
-| Lot | ADR | Contenu | Dépend de | Taille estimée |
-| --- | --- | --- | --- | --- |
-| 0. Socle | [0008](../ADR/0008-regulatory-foundations.md) | Paramètres réglementaires datés, migrations réversibles, garde CI des domaines externes, fichiers de conformité | rien | 1 sprint |
-| 7. Adaptations juridiques | [0015](../ADR/0015-legal-product-adaptations.md) | Médiation au lieu d'arbitrage, mentions légales, délai de réclamation paramétré, frais par zone | 0 | 1 sprint |
-| 2. Droits et consentement | [0010](../ADR/0010-data-subject-rights.md) | Consentements versionnés, « Mes données », conservation, journal de consultation | 0 | 2 sprints |
-| 3. Mode d'encaissement | [0011](../ADR/0011-collection-modes.md) | Mode direct vendeur, capacités des prestataires, verrou du mode détenteur, push USSD, succès tardif | 0, décision Fapshi | 2 sprints |
-| 4. Comptabilité et TVA | [0012](../ADR/0012-syscohada-tax.md) | Correspondance SYSCOHADA, frais prestataire, TVA, factures de commission, exports | 0, 3 | 2 sprints |
-| 5. KYC par niveaux | [0013](../ADR/0013-tiered-kyc.md) | Pièces chiffrées, plafonds de ventes, double validation | 0, 2 | 2 sprints |
-| 1. Localisation | [0009](../ADR/0009-data-localisation.md) | Hébergement au Cameroun, base séparée, sauvegardes PITR sur un second site, faible débit, flux sortants, registre | 0, choix hébergeur | 2 à 3 sprints |
-| 8. Exploitation | [0016](../ADR/0016-operations.md) | Supervision, Redis, ClamAV, exposition réseau, SMS, WhatsApp, e-mail | 1 | 2 sprints |
-| 6. Reversements | [0014](../ADR/0014-payouts.md) | Lots hebdomadaires sous double contrôle | 3 avec prestataire agréé, 4, 5 | 2 sprints |
+| Lot                       | ADR                                              | Contenu                                                                                                           | Dépend de                      | Taille estimée |
+| ------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------ | -------------- |
+| 0. Socle                  | [0008](../ADR/0008-regulatory-foundations.md)    | Paramètres réglementaires datés, migrations réversibles, garde CI des domaines externes, fichiers de conformité   | rien                           | 1 sprint       |
+| 7. Adaptations juridiques | [0015](../ADR/0015-legal-product-adaptations.md) | Médiation au lieu d'arbitrage, mentions légales, délai de réclamation paramétré, frais par zone                   | 0                              | 1 sprint       |
+| 2. Droits et consentement | [0010](../ADR/0010-data-subject-rights.md)       | Consentements versionnés, « Mes données », conservation, journal de consultation                                  | 0                              | 2 sprints      |
+| 3. Mode d'encaissement    | [0011](../ADR/0011-collection-modes.md)          | Mode direct vendeur, capacités des prestataires, verrou du mode détenteur, push USSD, succès tardif               | 0, décision Fapshi             | 2 sprints      |
+| 4. Comptabilité et TVA    | [0012](../ADR/0012-syscohada-tax.md)             | Correspondance SYSCOHADA, frais prestataire, TVA, factures de commission, exports                                 | 0, 3                           | 2 sprints      |
+| 5. KYC par niveaux        | [0013](../ADR/0013-tiered-kyc.md)                | Pièces chiffrées, plafonds de ventes, double validation                                                           | 0, 2                           | 2 sprints      |
+| 1. Localisation           | [0009](../ADR/0009-data-localisation.md)         | Hébergement au Cameroun, base séparée, sauvegardes PITR sur un second site, faible débit, flux sortants, registre | 0, choix hébergeur             | 2 à 3 sprints  |
+| 8. Exploitation           | [0016](../ADR/0016-operations.md)                | Supervision, Redis, ClamAV, exposition réseau, SMS, WhatsApp, e-mail                                              | 1                              | 2 sprints      |
+| 6. Reversements           | [0014](../ADR/0014-payouts.md)                   | Lots hebdomadaires sous double contrôle                                                                           | 3 avec prestataire agréé, 4, 5 | 2 sprints      |
 
 ## Ordre d'exécution recommandé
 
@@ -61,22 +61,22 @@ Deux voies avancent en parallèle : le **produit** (code applicatif) et l'**infr
 
 ## Risques de régression et parades
 
-| Risque | Lot | Parade |
-| --- | --- | --- |
-| Le passage au mode direct casse le journal : le compte « dû au vendeur » ne doit plus bouger, mais une créance de commission apparaît | 3, 4 | Écritures distinctes par mode, mode figé sur chaque paiement, contrainte d'équilibre inchangée ; les tests actuels du mode plateforme restent verts |
-| Les commandes déjà payées changent de sens comptable | 3, 4 | Le mode est mémorisé par paiement ; aucune réécriture rétroactive ; une migration de reprise uniquement si nécessaire |
-| La confirmation automatique d'un succès tardif provoque une survente | 3 | Réservation du stock par la même mise à jour conditionnelle qu'aujourd'hui, dans la transaction `apply_payment_event` ; test de concurrence dédié |
-| Un paramètre daté manquant bloque une opération | 0 | Valeurs initiales semées par la migration, contrôle au démarrage de l'API et du worker, test qui vérifie la présence de chaque paramètre utilisé |
-| Le renommage « arbitrage » vers « médiation » casse les routes, les permissions ou les enregistrements d'audit | 7 | Nouveaux noms d'API, anciens noms gardés en alias pendant un lot ; anciennes actions d'audit lisibles ; tests E2E du litige |
-| Les frais par zone changent le total des commandes en cours | 7 | Frais figés sur la commande (déjà le cas), zones appliquées aux seules nouvelles commandes |
-| Les plafonds KYC bloquent des ventes à tort, ou ne sont pas appliqués en concurrence | 5 | Contrôle dans la fonction SQL de paiement avec verrou sur le compteur mensuel ; tests de dépassement en parallèle |
-| La purge de conservation efface des données comptables ou un litige en cours | 2 | Purge par anonymisation, jamais sur une table comptable ; exclusion des dossiers en litige ou sous gel ; exécution à blanc journalisée avant la purge réelle |
-| Le chiffrement des pièces KYC rend des pièces illisibles après une rotation de clé | 5 | Chiffrement par enveloppe avec version de clé par pièce ; test de rotation |
-| La migration vers l'hébergeur camerounais perd des données ou casse Zitadel | 1 | Répétition complète sur l'environnement de pré-production, restauration testée, coupure planifiée ; Zitadel migré avec sa base, domaine inchangé |
-| Le faible débit dégrade la sécurité (cache de pages personnelles) | 1 | Cache public réservé aux réponses sans cookie ; en-têtes `Cache-Control: private, no-store` vérifiés par test sur toutes les pages de compte |
-| Redis indisponible bloque les connexions | 8 | Comportement explicite et testé : les limites refusent par défaut sur les routes sensibles et laissent passer ailleurs |
-| ClamAV ralentit ou bloque le traitement des photos | 8 | Analyse dans le worker, photo en attente tant qu'elle n'est pas analysée, alerte si la file grossit |
-| Les migrations `down` divergent des `up` | tous | Test CI montée → descente → montée, et comparaison du schéma final avec celui d'une montée simple |
+| Risque                                                                                                                                | Lot  | Parade                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Le passage au mode direct casse le journal : le compte « dû au vendeur » ne doit plus bouger, mais une créance de commission apparaît | 3, 4 | Écritures distinctes par mode, mode figé sur chaque paiement, contrainte d'équilibre inchangée ; les tests actuels du mode plateforme restent verts          |
+| Les commandes déjà payées changent de sens comptable                                                                                  | 3, 4 | Le mode est mémorisé par paiement ; aucune réécriture rétroactive ; une migration de reprise uniquement si nécessaire                                        |
+| La confirmation automatique d'un succès tardif provoque une survente                                                                  | 3    | Réservation du stock par la même mise à jour conditionnelle qu'aujourd'hui, dans la transaction `apply_payment_event` ; test de concurrence dédié            |
+| Un paramètre daté manquant bloque une opération                                                                                       | 0    | Valeurs initiales semées par la migration, contrôle au démarrage de l'API et du worker, test qui vérifie la présence de chaque paramètre utilisé             |
+| Le renommage « arbitrage » vers « médiation » casse les routes, les permissions ou les enregistrements d'audit                        | 7    | Nouveaux noms d'API, anciens noms gardés en alias pendant un lot ; anciennes actions d'audit lisibles ; tests E2E du litige                                  |
+| Les frais par zone changent le total des commandes en cours                                                                           | 7    | Frais figés sur la commande (déjà le cas), zones appliquées aux seules nouvelles commandes                                                                   |
+| Les plafonds KYC bloquent des ventes à tort, ou ne sont pas appliqués en concurrence                                                  | 5    | Contrôle dans la fonction SQL de paiement avec verrou sur le compteur mensuel ; tests de dépassement en parallèle                                            |
+| La purge de conservation efface des données comptables ou un litige en cours                                                          | 2    | Purge par anonymisation, jamais sur une table comptable ; exclusion des dossiers en litige ou sous gel ; exécution à blanc journalisée avant la purge réelle |
+| Le chiffrement des pièces KYC rend des pièces illisibles après une rotation de clé                                                    | 5    | Chiffrement par enveloppe avec version de clé par pièce ; test de rotation                                                                                   |
+| La migration vers l'hébergeur camerounais perd des données ou casse Zitadel                                                           | 1    | Répétition complète sur l'environnement de pré-production, restauration testée, coupure planifiée ; Zitadel migré avec sa base, domaine inchangé             |
+| Le faible débit dégrade la sécurité (cache de pages personnelles)                                                                     | 1    | Cache public réservé aux réponses sans cookie ; en-têtes `Cache-Control: private, no-store` vérifiés par test sur toutes les pages de compte                 |
+| Redis indisponible bloque les connexions                                                                                              | 8    | Comportement explicite et testé : les limites refusent par défaut sur les routes sensibles et laissent passer ailleurs                                       |
+| ClamAV ralentit ou bloque le traitement des photos                                                                                    | 8    | Analyse dans le worker, photo en attente tant qu'elle n'est pas analysée, alerte si la file grossit                                                          |
+| Les migrations `down` divergent des `up`                                                                                              | tous | Test CI montée → descente → montée, et comparaison du schéma final avec celui d'une montée simple                                                            |
 
 ## Ce que ce plan ne fait pas
 

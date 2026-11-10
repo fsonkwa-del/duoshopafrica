@@ -374,25 +374,26 @@ describe("finance separation of duties", () => {
 
 describe("claims", () => {
   const delivered = new Date("2026-10-20T10:00:00Z");
-  it("open only after a proven handover, within 7 days", () => {
+  const deadline = new Date("2026-10-27T10:00:00Z");
+  it("open only after a proven handover, until the claim deadline", () => {
     expect(
       canOpenClaim({
         fulfilmentStatus: "DELIVERED",
-        deliveredAt: delivered,
+        claimDeadline: deadline,
         now: new Date("2026-10-27T10:00:00Z"),
       }),
     ).toBe(true);
     expect(
       canOpenClaim({
         fulfilmentStatus: "DELIVERED",
-        deliveredAt: delivered,
+        claimDeadline: deadline,
         now: new Date("2026-10-27T10:00:01Z"),
       }),
     ).toBe(false);
     expect(
       canOpenClaim({
         fulfilmentStatus: "OUT_FOR_DELIVERY",
-        deliveredAt: null,
+        claimDeadline: null,
         now: delivered,
       }),
     ).toBe(false);

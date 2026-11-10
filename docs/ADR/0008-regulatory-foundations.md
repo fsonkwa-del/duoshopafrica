@@ -1,6 +1,6 @@
 # ADR 0008 — Socle de conformité : paramètres datés, migrations réversibles, flux sortants
 
-Date : 2026-11-09. Statut : proposé (lot 0 du [plan de conformité](../compliance/PLAN.md)).
+Date : 2026-11-09. Statut : accepté le 2026-11-10 et livré (lot 0 du [plan de conformité](../compliance/PLAN.md)).
 
 ## Contexte
 
@@ -23,3 +23,17 @@ Les lots de conformité introduisent de nombreuses valeurs réglementaires : TVA
 - Changer un taux ou une durée ne demande plus de déploiement, mais une saisie à deux personnes.
 - Toute fonction qui dépend d'une date (TVA, réclamation, conservation) devient testable à n'importe quelle date.
 - Les migrations antérieures au lot 0 restent sans `down.sql` ; seules les nouvelles en ont un.
+
+## Mise en œuvre (10 novembre 2026)
+
+- Migration `202611170001_regulatory_parameters` et son `down.sql`. Les tables `ParameterDefinition` (type, bornes, rôle propriétaire) et `RegulatoryParameter` sont en ajout seul pour le runtime. Une contrainte d'exclusion (`btree_gist`) empêche deux périodes approuvées de se chevaucher.
+- Fonctions `param_value` et `param_interval` (lecture à une date), `propose_parameter` et `decide_parameter` (seconde personne obligatoire, audit dans `ConfigAudit`).
+- Quatre constantes remplacées, valeurs inchangées et marquées « à valider » :
+  - `order.payment_window` (30 minutes) ;
+  - `payment.attempt_window` (10 minutes, dans `start_payment` et `close_unpaid_order`) ;
+  - `claims.window` (7 jours, lu à la date de remise dans `open_claim` et pour l'affichage) ;
+  - `guest_cart.retention` (30 jours).
+- Approbation : le rôle propriétaire de la clé propose, puis un autre membre ADMIN ou FINANCE approuve. Ces quatre clés appartiennent à ADMIN.
+- Écran d'administration « Paramètres réglementaires » en français et en anglais, avec les routes `/v1/admin/parameters`.
+- `pnpm db:down <migration>` et `pnpm db:roundtrip`, exécuté en CI. `pnpm check:outbound`, exécuté en CI.
+

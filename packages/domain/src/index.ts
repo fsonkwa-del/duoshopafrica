@@ -114,7 +114,10 @@ export type PlatformPermission =
   | "finance:configure"
   | "claim:review"
   | "claim:decide"
-  | "taxonomy:manage";
+  | "taxonomy:manage"
+  | "parameter:read"
+  | "parameter:propose"
+  | "parameter:decide";
 const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
   ADMIN: [
     "merchant:review",
@@ -125,11 +128,21 @@ const platformGrants: Record<PlatformRole, readonly PlatformPermission[]> = {
     "claim:review",
     "claim:decide",
     "taxonomy:manage",
+    "parameter:read",
+    "parameter:propose",
+    "parameter:decide",
   ],
   // Le support instruit les litiges ; l'arbitrage (décision d'argent) revient à l'ADMIN.
   SUPPORT: ["merchant:review", "payment:review", "claim:review"],
   // Les règles de commission ne sont modifiables que par la finance ; l'admin les consulte.
-  FINANCE: ["payment:review", "finance:review", "finance:configure"],
+  FINANCE: [
+    "payment:review",
+    "finance:review",
+    "finance:configure",
+    "parameter:read",
+    "parameter:propose",
+    "parameter:decide",
+  ],
 };
 export function canPlatform(input: {
   role: PlatformRole | null;
@@ -252,10 +265,8 @@ export function roundCoordinate(value: number, limit: 90 | 180): number | null {
   return Math.round(value * 10_000) / 10_000;
 }
 
-export const ORDER_PAYMENT_WINDOW_MS = 30 * 60_000;
-
-// Tentative de paiement sans réponse : au-delà, une nouvelle tentative est permise (SQL : 10 minutes).
-export const PAYMENT_ATTEMPT_TIMEOUT_MS = 10 * 60 * 1000;
+// Délai de paiement, durée d'une tentative et délai de réclamation : paramètres datés en base
+// (order.payment_window, payment.attempt_window, claims.window ; ADR 0008), jamais des constantes.
 // Préfixes E.164 configurés par opérateur ; liste vide = aucun filtrage.
 export function phoneMatchesPrefixes(
   phone: string,
@@ -298,7 +309,6 @@ export const HANDOVER_MAX_ATTEMPTS = 5;
 
 // ---------- Retours, litiges, remboursements (B09) ----------
 // Miroir des fonctions SQL (open_claim, respond_claim, escalate_claim, arbitrate_claim, withdraw_claim).
-export const CLAIM_WINDOW_DAYS = 7;
 export type ClaimStatus =
   | "OPEN"
   | "ACCEPTED"
@@ -330,16 +340,16 @@ export function nextClaimSteps(
 export function claimHoldsPayout(status: ClaimStatus): boolean {
   return status === "OPEN" || status === "REJECTED" || status === "ESCALATED";
 }
+// Échéance = remise + délai de réclamation en vigueur à la date de remise (calculée en base).
 export function canOpenClaim(input: {
   fulfilmentStatus: FulfilmentStatus;
-  deliveredAt: Date | null;
+  claimDeadline: Date | null;
   now: Date;
 }): boolean {
   return (
     input.fulfilmentStatus === "DELIVERED" &&
-    input.deliveredAt !== null &&
-    input.now.getTime() - input.deliveredAt.getTime() <=
-      CLAIM_WINDOW_DAYS * 24 * 3600_000
+    input.claimDeadline !== null &&
+    input.now.getTime() <= input.claimDeadline.getTime()
   );
 }
 // Commission reprise sur un remboursement : même taux et même arrondi qu'à l'origine,

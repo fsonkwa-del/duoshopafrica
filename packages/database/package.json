@@ -11,7 +11,9 @@
     "dev:session": "tsx src/dev-session.ts",
     "test:db": "tsx --test --test-concurrency=1 src/isolation.db.test.ts src/rls.db.test.ts src/maintenance.db.test.ts src/inventory.db.test.ts",
     "typecheck": "tsc --noEmit",
-    "platform:grant": "tsx src/platform-grant.ts"
+    "platform:grant": "tsx src/platform-grant.ts",
+    "db:down": "tsx src/db-down.ts",
+    "db:roundtrip": "tsx src/db-roundtrip.ts"
   },
   "dependencies": {
     "@prisma/client": "7.10.1",

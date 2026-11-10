@@ -389,6 +389,45 @@ export interface CommissionRuleDTO {
   validTo: string | null;
   createdAt: string;
 }
+// Paramètre réglementaire daté (ADR 0008) : une valeur par période, approuvée par une seconde personne.
+export type ParameterKindDTO =
+  | "duration"
+  | "rate"
+  | "amount"
+  | "integer"
+  | "text";
+export interface ParameterValueDTO {
+  id: string;
+  key: string;
+  storeId: string | null;
+  value: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  legalBasis: string | null;
+  validationStatus: "A_VALIDER" | "VALIDE";
+  proposedAt: string;
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  rejectReason: string | null;
+  proposedByMe: boolean;
+}
+export interface ParameterDefinitionDTO {
+  key: string;
+  kind: ParameterKindDTO;
+  ownerRole: "ADMIN" | "SUPPORT" | "FINANCE";
+  storeScoped: boolean;
+  minValue: string | null;
+  maxValue: string | null;
+  labelFr: string;
+  labelEn: string;
+  current: ParameterValueDTO | null;
+  canPropose: boolean;
+}
+export interface ParametersDTO {
+  definitions: ParameterDefinitionDTO[];
+  pending: ParameterValueDTO[];
+  history: ParameterValueDTO[];
+}
 export interface FinanceAnomalyDTO {
   kind:
     | "payment_not_journaled"

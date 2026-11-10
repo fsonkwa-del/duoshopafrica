@@ -20,7 +20,9 @@
     "db:seed": "pnpm --filter @duoshop/database seed",
     "dev:session": "pnpm --filter @duoshop/database dev:session",
     "platform:grant": "pnpm --filter @duoshop/database platform:grant",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:roundtrip": "pnpm --filter @duoshop/database db:roundtrip",
+    "check:outbound": "node scripts/check-outbound-hosts.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
