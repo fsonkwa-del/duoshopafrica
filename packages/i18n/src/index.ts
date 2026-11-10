@@ -232,6 +232,8 @@ export const messages = {
         address_not_found: "Adresse introuvable.",
         address_invalid:
           "Adresse incomplète ou numéro invalide : vérifiez le téléphone, le quartier et le repère.",
+        one_seller_per_order:
+          "Chaque vendeur est payé directement : commandez un vendeur à la fois (le reste de votre panier est conservé).",
         cgv_acceptance_required:
           "Acceptez les conditions générales de vente en vigueur pour commander.",
         consent_required:
@@ -531,6 +533,8 @@ export const messages = {
       actors: { buyer: "Acheteur", seller: "Vendeur", platform: "Plateforme" },
       amount: "Montant demandé",
       refund: "Remboursement",
+      refundBySeller:
+        "Remboursement décidé : le vendeur vous rembourse directement (paiement encaissé sur son compte).",
       refundPending:
         "Remboursement décidé, en attente d'exécution par le prestataire de paiement.",
       escalate: "Demander la médiation de la plateforme",
@@ -634,6 +638,8 @@ export const messages = {
       sandbox: "Environnement de test du prestataire : aucun argent réel.",
       pending:
         "Paiement en attente de confirmation de l'opérateur. Validez la demande sur votre téléphone, puis actualisez.",
+      approveOnPhone:
+        "Confirmez le paiement sur votre téléphone (message de votre opérateur). Cette page se met à jour toute seule.",
       redirect: "Continuer sur la page de paiement",
       refresh: "Actualiser le statut",
       simulateOk: "Simuler : validé sur le téléphone",
@@ -683,6 +689,53 @@ export const messages = {
       archive: "Retirer",
       saved: "Adresse enregistrée.",
       invalid: "Adresse invalide : vérifiez le téléphone et le repère.",
+    },
+    collection: {
+      sellerTitle: "Encaissement des paiements",
+      sellerDirect:
+        "Les acheteurs paient directement sur votre compte marchand. La plateforme vous facture ensuite sa commission. Saisissez les identifiants de votre compte chez le prestataire : ils sont chiffrés et ne sont plus jamais affichés.",
+      sellerPlatform:
+        "Les paiements sont encaissés par la plateforme. Aucun compte marchand n'est nécessaire pour l'instant.",
+      provider: "Prestataire",
+      mode: "Environnement",
+      modes: { SANDBOX: "Test (sandbox)", LIVE: "Réel", MOCK: "Simulateur" },
+      fields: {
+        apiUser: "Identifiant API (apiuser)",
+        apiKey: "Clé API (apikey)",
+        webhookSecret: "Secret de notification (x-wh-secret)",
+        secret: "Secret du simulateur (32 caractères minimum)",
+      },
+      configured: "Compte configuré",
+      active: "actif",
+      inactive: "désactivé",
+      save: "Enregistrer le compte",
+      saved:
+        "Compte enregistré. Déclarez cette adresse de notification chez le prestataire :",
+      failed: "Enregistrement impossible : vérifiez les identifiants.",
+      adminTitle: "Mode d'encaissement",
+      adminIntro:
+        "Le mode « plateforme détentrice des fonds » est interdit en production sans une autorisation : demandée par un administrateur avec la référence d'agrément, approuvée par une autre personne du rôle Finance.",
+      current: "Mode en service",
+      modeNames: {
+        PLATFORM_HELD: "Plateforme détentrice des fonds",
+        DIRECT_SELLER: "Paiement direct au vendeur",
+        PSP_ESCROW: "Séquestre chez un prestataire agréé",
+      },
+      reference: "Référence de l'agrément",
+      expiresAt: "Valable jusqu'au",
+      request: "Demander l'autorisation",
+      approve: "Approuver",
+      approved: "approuvée",
+      pending: "en attente d'approbation",
+      revoked: "révoquée",
+      errors: {
+        forbidden: "Action réservée au rôle concerné.",
+        same_person: "Une autre personne doit approuver.",
+        already_decided: "Déjà traitée.",
+        expired: "Autorisation expirée.",
+        authorization_expired: "La date de fin doit être future.",
+        unknown: "L'opération n'a pas abouti.",
+      },
     },
     privacy: {
       kinds: {
@@ -1311,6 +1364,8 @@ export const messages = {
         address_not_found: "Address not found.",
         address_invalid:
           "Incomplete address or invalid number: check the phone, district and landmark.",
+        one_seller_per_order:
+          "Each seller is paid directly: order from one seller at a time (the rest of your cart is kept).",
         cgv_acceptance_required:
           "Accept the terms of sale in force to place the order.",
         consent_required:
@@ -1600,6 +1655,8 @@ export const messages = {
       actors: { buyer: "Buyer", seller: "Seller", platform: "Platform" },
       amount: "Amount claimed",
       refund: "Refund",
+      refundBySeller:
+        "Refund decided: the seller refunds you directly (the payment went to the seller's account).",
       refundPending:
         "Refund decided, awaiting execution by the payment provider.",
       escalate: "Ask the platform to mediate",
@@ -1700,6 +1757,8 @@ export const messages = {
       sandbox: "Provider test environment: no real money.",
       pending:
         "Payment awaiting confirmation from the operator. Approve the request on your phone, then refresh.",
+      approveOnPhone:
+        "Confirm the payment on your phone (message from your operator). This page refreshes by itself.",
       redirect: "Continue to the payment page",
       refresh: "Refresh status",
       simulateOk: "Simulate: approved on phone",
@@ -1749,6 +1808,53 @@ export const messages = {
       archive: "Remove",
       saved: "Address saved.",
       invalid: "Invalid address: check the phone number and landmark.",
+    },
+    collection: {
+      sellerTitle: "Payment collection",
+      sellerDirect:
+        "Buyers pay directly into your merchant account. The platform then invoices you its commission. Enter your account credentials at the provider: they are encrypted and never shown again.",
+      sellerPlatform:
+        "Payments are collected by the platform. No merchant account is needed for now.",
+      provider: "Provider",
+      mode: "Environment",
+      modes: { SANDBOX: "Test (sandbox)", LIVE: "Live", MOCK: "Simulator" },
+      fields: {
+        apiUser: "API user (apiuser)",
+        apiKey: "API key (apikey)",
+        webhookSecret: "Notification secret (x-wh-secret)",
+        secret: "Simulator secret (at least 32 characters)",
+      },
+      configured: "Configured account",
+      active: "active",
+      inactive: "disabled",
+      save: "Save the account",
+      saved:
+        "Account saved. Declare this notification address at the provider:",
+      failed: "Could not save: check the credentials.",
+      adminTitle: "Collection mode",
+      adminIntro:
+        "The “platform holds the funds” mode is forbidden in production without an authorization: requested by an administrator with the licence reference, approved by another person with the Finance role.",
+      current: "Mode in service",
+      modeNames: {
+        PLATFORM_HELD: "Platform holds the funds",
+        DIRECT_SELLER: "Direct payment to the seller",
+        PSP_ESCROW: "Escrow at a licensed provider",
+      },
+      reference: "Licence reference",
+      expiresAt: "Valid until",
+      request: "Request the authorization",
+      approve: "Approve",
+      approved: "approved",
+      pending: "awaiting approval",
+      revoked: "revoked",
+      errors: {
+        forbidden: "Restricted to the relevant role.",
+        same_person: "Another person must approve.",
+        already_decided: "Already handled.",
+        expired: "Authorization expired.",
+        authorization_expired: "The end date must be in the future.",
+        unknown: "The operation did not complete.",
+      },
     },
     privacy: {
       kinds: {

@@ -1,6 +1,6 @@
 # ADR 0011 — Modes d'encaissement sans détention de fonds de tiers
 
-Date : 2026-11-09. Statut : proposé (lot 3). Précède toute mise en production avec de l'argent réel.
+Date : 2026-11-09. Statut : accepté le 2026-11-10, livré pour la partie logicielle (lot 3). Précède toute mise en production avec de l'argent réel.
 
 ## Contexte
 
@@ -28,3 +28,27 @@ Aujourd'hui, l'acheteur paie sur le compte Fapshi de la plateforme, qui enregist
 - Le mode direct supprime la détention de fonds, mais transfère au vendeur le risque de remboursement et à la plateforme un risque de recouvrement de commission.
 - Les tests actuels de paiement restent valables en `PLATFORM_HELD` (développement, tests). Une suite parallèle couvre `DIRECT_SELLER`.
 - Le lot 6 (reversements) n'a de sens qu'en `PSP_ESCROW`.
+
+## Mise en œuvre (10 novembre 2026)
+
+- **Migrations.**
+  - `202611200001_collection_enums` : type `CollectionMode` ; comptes `COMMISSION_RECEIVABLE`, `PSP_FEES` et `VAT_COLLECTED` (ces deux derniers pour le lot 4) ; statut de remboursement `SELLER_TO_EXECUTE`.
+  - `202611200002_collection_modes` : mode et compte marchand figés sur `Payment`, `StorePaymentAccount`, `CollectionModeAuthorization`. Les fonctions de paiement, de journal et de remboursement sont modifiées de façon ciblée, et le `down.sql` restaure leurs corps d'origine.
+- **Configuration.**
+  - `COLLECTION_MODE` est obligatoire en production.
+  - Le mode direct exige `PAYMENT_ACCOUNTS_KEY_<n>` (32 octets) et `PAYMENT_ACCOUNTS_KEY_VERSION`.
+  - Au démarrage, l'API refuse un mode dont les capacités manquent ; le séquestre est donc refusé aujourd'hui, faute d'adaptateur avec `split`, `payout`, `refund` et `balance`.
+  - Avec de l'argent réel (`NODE_ENV=production` et un prestataire de la plateforme en LIVE), l'API refuse aussi `PLATFORM_HELD` sans autorisation approuvée et non expirée. La pré-production en sandbox n'est pas concernée.
+- **Mode direct.**
+  - Le propriétaire de la boutique (permission `payments:configure`) saisit ses identifiants. Ils sont chiffrés en AES-256-GCM avec une clé versionnée hors base et ne sont jamais renvoyés. Chaque compte a sa propre adresse de notification.
+  - Une commande ne regroupe qu'un vendeur (`one_seller_per_order`) : le reste du panier est conservé.
+  - L'acheteur paie le compte du vendeur. Une notification ou une relecture ne vaut que pour les paiements de ce compte : sinon l'événement est mis en quarantaine (`account_mismatch`). C'est la parade à un vendeur qui créerait chez lui une transaction portant l'identifiant de paiement d'un autre.
+  - **Journal.** Le paiement constate `COMMISSION_RECEIVABLE` (par vendeur) contre `COMMISSION_DEFERRED`, sans fonds chez le prestataire ni dette envers le vendeur.
+  - **Remboursement décidé.** Il passe en `SELLER_TO_EXECUTE`, et seule la commission reprise touche la créance.
+  - Le worker relit les paiements en attente avec les identifiants de chaque compte.
+- **Autorisation `PLATFORM_HELD`.** Demande par un ADMIN (référence d'agrément, date de fin), approbation par une autre personne FINANCE, révocation possible, chaque étape auditée.
+- **Push USSD.** L'écran « Confirmez sur votre téléphone » (rechargement automatique, sans JavaScript) est prêt. **Aucun adaptateur ne déclare `ussdPush`** : le paiement direct Fapshi est refusé aux agrégateurs (question P4). La durée d'une tentative passe à 15 minutes (nouvelle période du paramètre `payment.attempt_window`).
+- **Succès tardif.** Si la commande a expiré mais que le stock est encore disponible au même emplacement et l'article toujours en vente, la commande est confirmée automatiquement (`late_confirmed`). Sinon, le comportement d'avant est conservé : signalement et remboursement manuel. Le paramètre `payment.late_success_autoconfirm` (`true` par défaut) contrôle ce comportement ; une commande annulée par l'acheteur n'est jamais confirmée.
+- **Non fait.**
+  - Le recouvrement de la commission (factures et suspension en cas d'impayé) relève du lot 4.
+  - Accord de Fapshi pour des comptes par vendeur : questions P1 à P3.

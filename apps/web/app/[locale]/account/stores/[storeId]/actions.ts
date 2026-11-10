@@ -1,6 +1,7 @@
 "use server";
 import { isLocale } from "@duoshop/i18n";
 import {
+  savePaymentAccount,
   submitVerification,
   updateFulfilment,
   updateStoreContact,
@@ -92,5 +93,28 @@ export async function saveZoneFees(formData: FormData) {
   const result = await updateZoneFees(apiUrl, token, webOrigin, storeId, fees);
   redirect(
     `${back}?verification=${result.ok ? "zones_saved" : "zones_failed"}`,
+  );
+}
+
+// Compte marchand (mode direct, lot 3). L'adresse de notification revient dans l'URL : ce n'est
+// pas un secret (le secret reste chez le prestataire et chiffré en base).
+export async function savePaymentAccountAction(formData: FormData) {
+  const locale = String(formData.get("locale"));
+  const storeId = String(formData.get("storeId"));
+  const back = `/${isLocale(locale) ? locale : "fr"}/account/stores/${encodeURIComponent(storeId)}`;
+  const token = await sessionToken();
+  if (!token) redirect(back);
+  const credentials: Record<string, string> = {};
+  for (const [key, value] of formData.entries())
+    if (key.startsWith("cred_")) credentials[key.slice(5)] = String(value);
+  const result = await savePaymentAccount(apiUrl, token, webOrigin, storeId, {
+    provider: String(formData.get("provider")),
+    mode: String(formData.get("mode")),
+    credentials,
+  });
+  redirect(
+    result.ok
+      ? `${back}?verification=account_saved&notify=${encodeURIComponent(result.data.notifyUrl)}`
+      : `${back}?verification=account_failed`,
   );
 }

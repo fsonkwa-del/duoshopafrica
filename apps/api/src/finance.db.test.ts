@@ -534,7 +534,16 @@ describe("posting a paid order", () => {
       data: { expiresAt: new Date(Date.now() - 1000) },
     });
     await expireUnpaidOrders(db);
+    // Article retiré entre-temps : pas de confirmation tardive possible (lot 3).
+    await db.productVariant.update({
+      where: { id: f.b.variant },
+      data: { active: false },
+    });
     await webhook(paymentId);
+    await db.productVariant.update({
+      where: { id: f.b.variant },
+      data: { active: true },
+    });
     assert.deepEqual(await journalLines("unapplied_payment", paymentId), [
       { account: "PSP_CLEARING", amountMinor: 8111n, tenantId: null },
       { account: "REFUND_PAYABLE", amountMinor: -8111n, tenantId: null },

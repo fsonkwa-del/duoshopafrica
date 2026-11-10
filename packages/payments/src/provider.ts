@@ -54,10 +54,26 @@ export type WebhookVerification =
       reason: "missing_signature" | "bad_signature" | "stale" | "malformed";
     };
 
+// Capacités déclarées par chaque adaptateur, d'après la documentation du prestataire (ADR 0011) :
+// un mode d'encaissement qui exige une capacité absente est refusé au démarrage.
+export type ProviderCapability =
+  // Encaisser un paiement.
+  | "collect"
+  // Paiement validé sur le téléphone de l'acheteur, sans page hébergée (push USSD).
+  | "ussdPush"
+  // Un compte marchand par vendeur, identifiants fournis par le vendeur (mode direct).
+  | "perMerchantCredentials"
+  | "refund"
+  | "payout"
+  | "balance"
+  // Répartition d'un paiement entre plusieurs bénéficiaires (séquestre d'un prestataire agréé).
+  | "split";
+
 export interface PaymentProvider {
   // Clé d'adaptateur référencée par les moyens de paiement configurés (ex. « mock »).
   readonly key: string;
   readonly mode: PaymentMode;
+  readonly capabilities: ReadonlySet<ProviderCapability>;
   initiate(input: InitiatePaymentInput): Promise<InitiatePaymentResult>;
   // Vérifie l'authenticité (signature sur le corps brut, ou statut relu chez le prestataire),
   // la fraîcheur et la forme, avant toute écriture. Une erreur réseau lève une exception :
@@ -73,4 +89,26 @@ export interface PaymentProvider {
     providerReference: string,
     now?: Date,
   ): Promise<WebhookVerification>;
+  // Capacités facultatives (séquestre, reversements) : aucun adaptateur actuel ne les fournit.
+  refund?(input: {
+    paymentId: string;
+    providerReference: string;
+    amountMinor: bigint;
+    currency: string;
+  }): Promise<
+    { ok: true; reference: string } | { ok: false; failureCode: string }
+  >;
+  payout?(input: {
+    payoutId: string;
+    destination: string;
+    amountMinor: bigint;
+    currency: string;
+  }): Promise<
+    { ok: true; reference: string } | { ok: false; failureCode: string }
+  >;
+  getBalance?(): Promise<{ amountMinor: bigint; currency: string }>;
+  splitPayment?(input: {
+    paymentId: string;
+    shares: { beneficiary: string; amountMinor: bigint }[];
+  }): Promise<{ ok: true } | { ok: false; failureCode: string }>;
 }

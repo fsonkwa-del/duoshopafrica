@@ -89,6 +89,11 @@ export function AdminNav({
         },
         { href: href("finance"), text: t.finance.nav, icon: <OrdersIcon /> },
         {
+          href: href("collection"),
+          text: t.collection.adminTitle,
+          icon: <ShieldIcon />,
+        },
+        {
           href: href("privacy"),
           text: t.privacy.admin.requestsTitle,
           icon: <ShieldIcon />,

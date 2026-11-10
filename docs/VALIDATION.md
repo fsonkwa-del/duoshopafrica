@@ -754,3 +754,38 @@ Branche `compliance/lot-2-privacy`, issue du lot 7.
   - conservation à blanc sans modification.
 - `merchant.db.test.ts` : le téléphone du propriétaire est masqué dans la file.
 - Suites : lint, typecheck, 78 tests unitaires, 187 tests sur base réelle (base 19, API 166, worker 2).
+
+# Conformité — Lot 3 : modes d'encaissement (ADR 0011) — 10 novembre 2026
+
+Branche `compliance/lot-3-collection`, issue du lot 2.
+
+## Livré
+
+- **Modes d'encaissement.** Un mode par environnement, figé sur chaque paiement. Le démarrage est refusé si un mode manque de capacités, ou si la plateforme détient de l'argent réel (prestataire en LIVE) sans autorisation à deux personnes ; la pré-production en sandbox n'est pas concernée.
+- **Mode direct vendeur.**
+  - Compte marchand chiffré, saisi par le propriétaire.
+  - Un vendeur par commande.
+  - Notifications et relectures limitées aux paiements du compte.
+  - Créance de commission au lieu d'un dû vendeur ; remboursement exécuté par le vendeur.
+- **Capacités déclarées par adaptateur.** Méthodes facultatives `refund`, `payout`, `getBalance` et `splitPayment`, qu'aucun adaptateur n'implémente aujourd'hui.
+- **Paiements.** Écran d'attente « confirmez sur votre téléphone » ; tentative portée à 15 minutes ; confirmation automatique d'un succès tardif quand le stock le permet.
+- **Écrans.** Section « Encaissement des paiements » de la boutique ; page d'administration « Mode d'encaissement ».
+- **Défauts trouvés et corrigés pendant les tests.**
+  - La contrainte du journal n'acceptait de ventilation par vendeur que sur le dû au vendeur ; elle couvre désormais la créance de commission.
+  - Les comptes du simulateur (mode MOCK) étaient refusés par la base.
+- **Tests adaptés au nouveau comportement voulu.**
+  - Succès tardif : confirmé si le stock est disponible, signalé sinon.
+  - Durée de tentative : 15 minutes.
+
+## Commandes réellement exécutées
+
+- `pnpm db:roundtrip` : « round trip ok (2308 schema facts) » ; le `down.sql` restaure les corps d'origine de 6 fonctions.
+- `collection.db.test.ts` (5 tests) :
+  - compte marchand : propriétaire seul, champs inconnus refusés, identifiants absents des réponses et de la base en clair ;
+  - un vendeur par commande ;
+  - paiement sur le compte du vendeur. Une notification signée par la plateforme ou par un autre vendeur est mise en quarantaine (`account_mismatch`, 2 événements) ; la notification du bon compte est appliquée. Écritures : `COMMISSION_RECEIVABLE` +2 000, `COMMISSION_DEFERRED` −2 000 ;
+  - remboursement accepté par le vendeur : `SELLER_TO_EXECUTE`, commission reprise contre la créance ;
+  - verrou de production : refus sans autorisation ; demande par FINANCE refusée ; approbation par la même personne refusée ; approbation par FINANCE acceptée ; nouveau refus après révocation. Séquestre refusé faute de capacités.
+- `collection.test.ts` (4 tests unitaires) : configuration, capacités manquantes, chiffrement (mauvaise clé et contenu altéré refusés), simulateur interdit en production.
+- `payments.db.test.ts` : confirmation tardive (stock repris, `late_confirmed`) et signalement quand l'article n'est plus en vente.
+- Suites : lint, typecheck, 82 tests unitaires, 193 tests sur base réelle (base 19, API 172, worker 2).

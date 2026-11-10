@@ -46,7 +46,9 @@ export function ClaimCard({
           {c.refund} : {money(claim.refund.amount)}
           {claim.refund.status === "PENDING_PROVIDER"
             ? ` — ${c.refundPending}`
-            : ""}
+            : claim.refund.status === "SELLER_TO_EXECUTE"
+              ? ` — ${c.refundBySeller}`
+              : ""}
         </p>
       )}
       <ol className="timeline" aria-label={c.title}>

@@ -549,7 +549,7 @@ export interface ClaimDTO {
   // Remboursement décidé, à exécuter par le prestataire de paiement.
   refund: {
     amount: MoneyDTO;
-    status: "PENDING_PROVIDER" | "SUCCEEDED" | "FAILED";
+    status: "PENDING_PROVIDER" | "SUCCEEDED" | "FAILED" | "SELLER_TO_EXECUTE";
   } | null;
 }
 

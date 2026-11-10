@@ -1,4 +1,16 @@
 export { CinetPayProvider, type CinetPaySettings } from "./cinetpay";
+export {
+  type CollectionMode,
+  type CollectionSettings,
+  collectionFromEnv,
+  MERCHANT_FIELDS,
+  type MerchantCredentials,
+  missingCapabilities,
+  openCredentials,
+  providerForAccount,
+  REQUIRED_CAPABILITIES,
+  sealCredentials,
+} from "./collection";
 export { FapshiProvider, type FapshiSettings } from "./fapshi";
 export {
   MOCK_SIGNATURE_HEADER,
@@ -14,6 +26,7 @@ export type {
   NextAction,
   PaymentMode,
   PaymentProvider,
+  ProviderCapability,
   VerifiedPaymentEvent,
   WebhookVerification,
 } from "./provider";

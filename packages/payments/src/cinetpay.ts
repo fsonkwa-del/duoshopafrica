@@ -4,6 +4,7 @@ import type {
   InitiatePaymentResult,
   PaymentMode,
   PaymentProvider,
+  ProviderCapability,
   WebhookVerification,
 } from "./provider";
 
@@ -43,6 +44,7 @@ function text(value: unknown, max = 200): string | null {
 export class CinetPayProvider implements PaymentProvider {
   readonly key = "cinetpay";
   readonly mode: PaymentMode;
+  readonly capabilities: ReadonlySet<ProviderCapability> = new Set(["collect"]);
   private readonly base: string;
 
   constructor(

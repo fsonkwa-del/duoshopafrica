@@ -1,5 +1,5 @@
 import { isLocale, messages } from "@duoshop/i18n";
-import { getDeliveryZones, getStore } from "@duoshop/sdk";
+import { getDeliveryZones, getPaymentAccounts, getStore } from "@duoshop/sdk";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,16 +12,17 @@ import {
   saveZoneFees,
   sendVerification,
 } from "./actions";
+import { PaymentAccount } from "./payment-account";
 
 export default async function StorePage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string; storeId: string }>;
-  searchParams: Promise<{ verification?: string }>;
+  searchParams: Promise<{ verification?: string; notify?: string }>;
 }) {
   const { locale, storeId } = await params;
-  const { verification: outcome } = await searchParams;
+  const { verification: outcome, notify } = await searchParams;
   if (!isLocale(locale)) notFound();
   const t = messages[locale];
   const path = `/account/stores/${storeId}`;
@@ -31,6 +32,10 @@ export default async function StorePage({
     return <SignIn locale={locale} path={path} />;
   const back = <Link href={`/${locale}/account`}>{t.backToStores}</Link>;
   const zones = await getDeliveryZones(apiUrl);
+  // Réservé au propriétaire (payments:configure) : absent pour les autres rôles.
+  const accounts = token
+    ? await getPaymentAccounts(apiUrl, token, storeId)
+    : null;
   if (!result.ok)
     return (
       <AccountShell locale={locale} path={path} signedIn>
@@ -124,6 +129,15 @@ export default async function StorePage({
           </button>
         </form>
       </section>
+      {accounts?.ok && (
+        <PaymentAccount
+          locale={locale}
+          storeId={store.id}
+          data={accounts.data}
+          {...(outcome ? { outcome } : {})}
+          {...(notify ? { notifyUrl: notify } : {})}
+        />
+      )}
       <section aria-labelledby="zone-fees" className="panel">
         <h2 id="zone-fees">{t.zones.sellerTitle}</h2>
         <p className="hint">{t.zones.sellerIntro}</p>

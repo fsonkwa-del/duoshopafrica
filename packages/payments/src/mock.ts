@@ -3,6 +3,7 @@ import type {
   InitiatePaymentInput,
   InitiatePaymentResult,
   PaymentProvider,
+  ProviderCapability,
   WebhookVerification,
 } from "./provider";
 
@@ -65,6 +66,11 @@ function text(value: unknown, max: number): string | null {
 export class MockPaymentProvider implements PaymentProvider {
   readonly key = "mock";
   readonly mode = "MOCK" as const;
+  // Simulateur : un secret par compte permet de tester le mode direct sans prestataire.
+  readonly capabilities: ReadonlySet<ProviderCapability> = new Set([
+    "collect",
+    "perMerchantCredentials",
+  ]);
   constructor(private readonly secret: string) {
     if (secret.length < 32)
       throw new Error("PAYMENTS_MOCK_SECRET must be at least 32 characters");

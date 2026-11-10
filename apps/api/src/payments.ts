@@ -6,9 +6,11 @@ import {
 } from "@duoshop/database";
 import { normalizeCameroonPhone, phoneMatchesPrefixes } from "@duoshop/domain";
 import {
+  type CollectionSettings,
   MOCK_SIGNATURE_HEADER,
   MockPaymentProvider,
   mockEventBody,
+  type PaymentProvider,
   type PaymentProviders,
 } from "@duoshop/payments";
 import type {
@@ -20,6 +22,7 @@ import type {
   PaymentMethodOptionDTO,
 } from "@duoshop/types";
 import type { FastifyInstance } from "fastify";
+import { accountProvider, defaultCollection } from "./collection";
 import {
   errorSchema as error,
   requirePrincipal,
@@ -181,9 +184,35 @@ function isUniqueViolation(err: unknown): boolean {
 
 export async function paymentRoutes(
   app: FastifyInstance,
-  options: { db: Database; webOrigin: string; providers: PaymentProviders },
+  options: {
+    db: Database;
+    webOrigin: string;
+    providers: PaymentProviders;
+    collection?: CollectionSettings;
+    env?: Record<string, string | undefined>;
+  },
 ) {
   const { db, webOrigin, providers } = options;
+  const collection = options.collection ?? defaultCollection;
+  const env = options.env ?? process.env;
+  const direct = collection.mode === "DIRECT_SELLER";
+  // Mode direct (lot 3) : compte marchand du vendeur de la commande, pour ce prestataire.
+  const sellerAccount = async (
+    userId: string,
+    orderId: string,
+    provider: string,
+  ) => {
+    const [row] = await asRuntime(
+      db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<{ id: string | null }[]>`
+        SELECT order_payment_account(${orderId}::uuid, ${provider}) AS id`,
+    );
+    if (!row?.id) return null;
+    const account = await accountProvider(db, collection, env, row.id);
+    return account?.active ? { id: row.id, ...account } : null;
+  };
 
   // ---------- Acheteur : moyens proposés pour une commande ----------
   app.get(
@@ -218,9 +247,20 @@ export async function paymentRoutes(
         },
       );
       if (!result) return reply.code(404).send({ error: "not_found" });
-      // Un moyen n'est proposé que si son adaptateur existe dans cet environnement.
+      // Un moyen n'est proposé que si son adaptateur existe dans cet environnement ; en mode
+      // direct, que si le vendeur a un compte marchand actif chez ce prestataire.
+      const accounts = new Map<string, PaymentProvider | null>();
+      if (direct)
+        for (const key of new Set(result.map((m) => m.provider)))
+          accounts.set(
+            key,
+            (await sellerAccount(principal.userId, orderId, key))?.provider ??
+              null,
+          );
       const methods: PaymentMethodOptionDTO[] = result.flatMap((m) => {
-        const provider = providers.get(m.provider);
+        const provider = direct
+          ? accounts.get(m.provider)
+          : providers.get(m.provider);
         return provider
           ? [
               {
@@ -277,9 +317,17 @@ export async function paymentRoutes(
       const method = await asRuntime(db, {}, (tx) =>
         tx.paymentMethod.findUnique({ where: { code: body.methodCode } }),
       );
-      const provider = method?.enabled
-        ? providers.get(method.provider)
-        : undefined;
+      const account =
+        direct && method?.enabled
+          ? await sellerAccount(principal.userId, orderId, method.provider)
+          : null;
+      if (direct && method?.enabled && !account)
+        return reply.code(409).send({ error: "seller_account_unavailable" });
+      const provider = !method?.enabled
+        ? undefined
+        : direct
+          ? account?.provider
+          : providers.get(method.provider);
       if (!method || !provider)
         return reply.code(409).send({ error: "method_unavailable" });
       let phone: string | null = null;
@@ -298,7 +346,8 @@ export async function paymentRoutes(
         (tx) =>
           tx.$queryRaw<{ payment_id: string | null; outcome: string }[]>`
           SELECT * FROM start_payment(${orderId}::uuid, ${method.code}, ${method.provider},
-            ${provider.mode}::"PaymentMode", ${body.idempotencyKey}, ${phone})`,
+            ${provider.mode}::"PaymentMode", ${body.idempotencyKey}, ${phone},
+            ${collection.mode}::"CollectionMode", ${account?.id ?? null}::uuid)`,
       );
       const outcome = started?.outcome ?? "not_found";
       if (outcome === "not_found")
@@ -324,7 +373,9 @@ export async function paymentRoutes(
         const result = await provider.initiate({
           kind: method.kind,
           // Adresses publiques : passent par l'origine du site (réécriture /v1 vers l'API).
-          notifyUrl: `${webOrigin}/v1/payments/webhooks/${provider.key}`,
+          notifyUrl: account
+            ? `${webOrigin}/v1/payments/webhooks/${provider.key}/accounts/${account.id}`
+            : `${webOrigin}/v1/payments/webhooks/${provider.key}`,
           returnUrl: `${webOrigin}/v1/payments/return?${new URLSearchParams({ order: orderId })}`,
           paymentId,
           amountMinor: payment.amountMinor,
@@ -371,47 +422,70 @@ export async function paymentRoutes(
         { parseAs: "buffer", bodyLimit: 65536 },
         (_request, body, done) => done(null, body),
       );
-    hooks.post(
+    for (const path of [
       "/v1/payments/webhooks/:provider",
-      {
-        config: { rateLimit: { max: 600, timeWindow: 60_000 } },
-        schema: {
-          params: {
-            type: "object",
-            required: ["provider"],
-            properties: {
-              provider: { type: "string", pattern: "^[a-z0-9_-]{2,40}$" },
+      "/v1/payments/webhooks/:provider/accounts/:accountId",
+    ])
+      hooks.post(
+        path,
+        {
+          config: { rateLimit: { max: 600, timeWindow: 60_000 } },
+          schema: {
+            params: {
+              type: "object",
+              required: ["provider"],
+              properties: {
+                provider: { type: "string", pattern: "^[a-z0-9_-]{2,40}$" },
+                accountId: uuid,
+              },
             },
           },
         },
-      },
-      async (request, reply) => {
-        const key = (request.params as { provider: string }).provider;
-        const provider = providers.get(key);
-        if (!provider) return reply.code(404).send({ error: "not_found" });
-        const raw = request.body;
-        if (!Buffer.isBuffer(raw))
-          return reply.code(400).send({ error: "invalid_request" });
-        const verified = await provider.verifyWebhook(raw, request.headers);
-        if (!verified.ok) {
-          request.log.warn(
-            { provider: key, reason: verified.reason },
-            "payment webhook rejected",
+        async (request, reply) => {
+          const { provider: key, accountId } = request.params as {
+            provider: string;
+            accountId?: string;
+          };
+          // Compte vendeur (mode direct) : adaptateur construit avec ses identifiants ; un compte
+          // désactivé reçoit encore les notifications de ses paiements en cours.
+          const account = accountId
+            ? await accountProvider(db, collection, env, accountId).catch(
+                () => null,
+              )
+            : null;
+          if (accountId && account?.key !== key)
+            return reply.code(404).send({ error: "not_found" });
+          const provider = account ? account.provider : providers.get(key);
+          if (!provider) return reply.code(404).send({ error: "not_found" });
+          const raw = request.body;
+          if (!Buffer.isBuffer(raw))
+            return reply.code(400).send({ error: "invalid_request" });
+          const verified = await provider.verifyWebhook(raw, request.headers);
+          if (!verified.ok) {
+            request.log.warn(
+              { provider: key, reason: verified.reason },
+              "payment webhook rejected",
+            );
+            return reply
+              .code(verified.reason === "malformed" ? 400 : 401)
+              .send({ error: "invalid_signature" });
+          }
+          const e = verified.event;
+          // Persistance et effet dans une seule transaction ; l'ACK suit le COMMIT.
+          const outcome = await applyPaymentEvent(
+            db,
+            key,
+            e,
+            raw,
+            accountId ?? null,
           );
-          return reply
-            .code(verified.reason === "malformed" ? 400 : 401)
-            .send({ error: "invalid_signature" });
-        }
-        const e = verified.event;
-        // Persistance et effet dans une seule transaction ; l'ACK suit le COMMIT.
-        const outcome = await applyPaymentEvent(db, key, e, raw);
-        request.log.info(
-          { provider: key, eventId: e.eventId, outcome },
-          "payment webhook processed",
-        );
-        return { received: true, outcome };
-      },
-    );
+          request.log.info(
+            { provider: key, eventId: e.eventId, outcome },
+            "payment webhook processed",
+          );
+          return { received: true, outcome };
+        },
+      );
   });
 
   // ---------- Retour du payeur depuis la page du prestataire (GET ou POST) ----------
@@ -444,7 +518,10 @@ export async function paymentRoutes(
   // Le simulateur signe un événement et l'injecte dans le vrai point d'entrée webhook :
   // vérification, idempotence et effets sont exactement ceux d'un prestataire.
   const mock = providers.get("mock");
-  if (mock instanceof MockPaymentProvider)
+  if (
+    mock instanceof MockPaymentProvider ||
+    (direct && env.PAYMENTS_MOCK_ENABLED === "true")
+  )
     app.post(
       "/v1/payments/:paymentId/simulate",
       {
@@ -478,6 +555,12 @@ export async function paymentRoutes(
         );
         if (payment?.provider !== "mock")
           return reply.code(404).send({ error: "not_found" });
+        const signer = payment.storeAccountId
+          ? (await accountProvider(db, collection, env, payment.storeAccountId))
+              ?.provider
+          : mock;
+        if (!(signer instanceof MockPaymentProvider))
+          return reply.code(404).send({ error: "not_found" });
         if (payment.status !== "PENDING" || !payment.providerReference)
           return reply.code(409).send({ error: "not_pending" });
         const body = mockEventBody({
@@ -490,10 +573,12 @@ export async function paymentRoutes(
         });
         const response = await app.inject({
           method: "POST",
-          url: "/v1/payments/webhooks/mock",
+          url: payment.storeAccountId
+            ? `/v1/payments/webhooks/mock/accounts/${payment.storeAccountId}`
+            : "/v1/payments/webhooks/mock",
           headers: {
             "content-type": "application/json",
-            [MOCK_SIGNATURE_HEADER]: mock.sign(body),
+            [MOCK_SIGNATURE_HEADER]: signer.sign(body),
           },
           payload: body,
         });

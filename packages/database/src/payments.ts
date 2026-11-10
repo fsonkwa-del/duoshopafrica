@@ -24,6 +24,8 @@ export async function applyPaymentEvent(
   provider: string,
   event: PaymentEventInput,
   rawBody?: Buffer,
+  // Compte marchand dont les identifiants ont vérifié l'événement (mode direct, lot 3).
+  accountId: string | null = null,
 ): Promise<string | undefined> {
   const payloadHash =
     event.fingerprint ??
@@ -39,7 +41,7 @@ export async function applyPaymentEvent(
       SELECT apply_payment_event(${provider}, ${event.eventId}, ${payloadHash},
         ${JSON.stringify(event.payload)}::jsonb, ${paymentId}::uuid, ${event.providerReference},
         ${event.status}, ${event.amountMinor}, ${event.currency}, ${event.occurredAt},
-        ${event.failureCode}) AS outcome`,
+        ${event.failureCode}, ${accountId}::uuid) AS outcome`,
   );
   return row?.outcome;
 }
@@ -49,12 +51,20 @@ export function pendingProviderPayments(
   provider: string,
   includeOld: boolean,
   limit = 20,
-): Promise<{ id: string; providerReference: string }[]> {
+): Promise<
+  { id: string; providerReference: string; storeAccountId: string | null }[]
+> {
   return asRuntime(
     db,
     {},
     (tx) =>
-      tx.$queryRaw<{ id: string; providerReference: string }[]>`
+      tx.$queryRaw<
+        {
+          id: string;
+          providerReference: string;
+          storeAccountId: string | null;
+        }[]
+      >`
       SELECT * FROM pending_provider_payments(${provider}, ${includeOld}, ${limit}::integer)`,
   );
 }

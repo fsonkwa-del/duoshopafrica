@@ -9,7 +9,14 @@ import {
   releaseExpiredReservations,
 } from "@duoshop/database";
 import { storageFromEnv } from "@duoshop/media";
-import { providersFromEnv, reconcilePayments } from "@duoshop/payments";
+import {
+  collectionFromEnv,
+  MERCHANT_FIELDS,
+  openCredentials,
+  providerForAccount,
+  providersFromEnv,
+  reconcilePayments,
+} from "@duoshop/payments";
 import { processPendingMedia } from "./media-job";
 
 // Tâches réelles : purge des tentatives de connexion, libération des réservations de stock expirées,
@@ -91,6 +98,30 @@ await processMedia();
 const mediaTimer = setInterval(processMedia, MEDIA_EVERY_MS);
 // Paiements en attente : récents à chaque minute, anciens (jusqu'à 25 h) un passage sur quinze.
 const providers = providersFromEnv(process.env);
+// Mode direct (lot 3) : les paiements des vendeurs se relisent avec les identifiants de leur compte.
+const collection = collectionFromEnv(process.env);
+const direct = collection.mode === "DIRECT_SELLER";
+async function accountProvider(accountId: string) {
+  const [account] = await db.$queryRaw<
+    {
+      provider: string;
+      mode: "SANDBOX" | "LIVE" | "MOCK";
+      credentials: Buffer;
+      keyVersion: number;
+    }[]
+  >`SELECT * FROM store_payment_account(${accountId}::uuid)`;
+  if (!account) return undefined;
+  return providerForAccount(
+    account.provider,
+    account.mode,
+    openCredentials(
+      Buffer.from(account.credentials),
+      account.keyVersion,
+      collection,
+    ),
+    process.env,
+  );
+}
 let reconcileRuns = 0;
 async function reconcile() {
   const includeOld = reconcileRuns++ % 15 === 0;
@@ -101,7 +132,11 @@ async function reconcile() {
         providers,
         {
           pending: (key, old) => pendingProviderPayments(db, key, old),
-          apply: (key, event) => applyPaymentEvent(db, key, event),
+          apply: (key, event, accountId) =>
+            applyPaymentEvent(db, key, event, undefined, accountId),
+          ...(direct
+            ? { accountProvider, accountKeys: Object.keys(MERCHANT_FIELDS) }
+            : {}),
         },
         includeOld,
       )),

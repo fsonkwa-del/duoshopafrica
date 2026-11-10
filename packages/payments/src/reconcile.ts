@@ -1,4 +1,4 @@
-import type { VerifiedPaymentEvent } from "./provider";
+import type { PaymentProvider, VerifiedPaymentEvent } from "./provider";
 import type { PaymentProviders } from "./registry";
 
 // Accès base injecté (le paquet paiements ne dépend pas de la base) : liste des paiements en
@@ -7,11 +7,17 @@ export interface ReconcileStore {
   pending(
     provider: string,
     includeOld: boolean,
-  ): Promise<{ id: string; providerReference: string }[]>;
+  ): Promise<
+    { id: string; providerReference: string; storeAccountId?: string | null }[]
+  >;
   apply(
     provider: string,
     event: VerifiedPaymentEvent,
+    accountId: string | null,
   ): Promise<string | undefined>;
+  // Mode direct (lot 3) : adaptateur construit avec les identifiants du compte du vendeur.
+  accountProvider?(accountId: string): Promise<PaymentProvider | undefined>;
+  accountKeys?: readonly string[];
 }
 
 // Rapprochement : relit chez le prestataire le statut des paiements encore en attente, pour ceux
@@ -25,17 +31,31 @@ export async function reconcilePayments(
   includeOld: boolean,
 ): Promise<{ checked: number; applied: number; failed: number }> {
   const result = { checked: 0, applied: 0, failed: 0 };
-  for (const [key, provider] of providers) {
-    if (!provider.fetchStatus) continue;
+  // Prestataires de la plateforme, plus ceux des comptes vendeurs (mode direct) même si la
+  // plateforme n'a pas d'identifiants chez eux.
+  const keys = new Set([...providers.keys(), ...(store.accountKeys ?? [])]);
+  for (const key of keys) {
+    const provider = providers.get(key);
+    // Prestataire de la plateforme sans relecture et sans compte vendeur : rien à relire.
+    if (!provider?.fetchStatus && !store.accountKeys?.includes(key)) continue;
     for (const payment of await store.pending(key, includeOld)) {
+      const accountId = payment.storeAccountId ?? null;
+      if (!accountId && !provider?.fetchStatus) continue;
       result.checked++;
       try {
-        const verified = await provider.fetchStatus(payment.providerReference);
+        const reader = accountId
+          ? await store.accountProvider?.(accountId)
+          : provider;
+        if (!reader?.fetchStatus) {
+          result.failed++;
+          continue;
+        }
+        const verified = await reader.fetchStatus(payment.providerReference);
         if (!verified.ok) {
           result.failed++;
           continue;
         }
-        if ((await store.apply(key, verified.event)) === "APPLIED")
+        if ((await store.apply(key, verified.event, accountId)) === "APPLIED")
           result.applied++;
       } catch {
         result.failed++;

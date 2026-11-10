@@ -4,6 +4,7 @@ import type {
   InitiatePaymentResult,
   PaymentMode,
   PaymentProvider,
+  ProviderCapability,
   WebhookVerification,
 } from "./provider";
 
@@ -50,6 +51,13 @@ function sameSecret(given: string, expected: string): boolean {
 export class FapshiProvider implements PaymentProvider {
   readonly key = "fapshi";
   readonly mode: PaymentMode;
+  // D'après docs.fapshi.com : encaissement par lien. Le paiement direct (push) est refusé aux
+  // agrégateurs ; le remboursement n'existe pas ; les reversements passent par un service distinct.
+  // Un compte par vendeur reste à confirmer par Fapshi (question P1).
+  readonly capabilities: ReadonlySet<ProviderCapability> = new Set([
+    "collect",
+    "perMerchantCredentials",
+  ]);
   private readonly base: string;
 
   constructor(

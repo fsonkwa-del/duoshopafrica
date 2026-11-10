@@ -628,7 +628,54 @@ describe("paying an order with a configured method", () => {
     );
   });
 
-  test("a success after the order expired is recorded and flagged, never silently applied", async () => {
+  test("a late success confirms the expired order when its stock is still available", async () => {
+    const o = await order(1);
+    const started = await pay(o.id, {
+      methodCode: codes.mtn,
+      idempotencyKey: key(),
+      payerPhone: "677 11 22 33",
+    });
+    await db.order.update({
+      where: { id: o.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    await expireUnpaidOrders(db);
+    const stock = await level();
+    const payment = await db.payment.findUniqueOrThrow({
+      where: { id: started.json().id },
+    });
+    const late = mockEventBody({
+      eventId: `test_${suffix}_late_ok`,
+      paymentId: payment.id,
+      providerReference: payment.providerReference ?? "",
+      status: "SUCCEEDED",
+      amountMinor: payment.amountMinor,
+      currency: "XAF",
+    });
+    assert.equal((await signed(late)).json().outcome, "APPLIED");
+    const confirmed = await db.order.findUniqueOrThrow({
+      where: { id: o.id },
+      include: { sellerOrders: true },
+    });
+    // Paramètre payment.late_success_autoconfirm (lot 3) : stock repris, commande payée.
+    assert.equal(confirmed.status, "PAID");
+    assert.equal(confirmed.closedAt, null);
+    assert.equal(confirmed.sellerOrders[0]?.status, "PAID");
+    assert.equal(
+      (await db.payment.findUniqueOrThrow({ where: { id: payment.id } }))
+        .attentionReason,
+      null,
+    );
+    const after = await level();
+    assert.equal(after.onHand, stock.onHand - 1);
+    assert.equal(after.reserved, stock.reserved);
+    const event = await db.providerEvent.findFirstOrThrow({
+      where: { eventId: `test_${suffix}_late_ok` },
+    });
+    assert.equal(event.detail, "late_confirmed");
+  });
+
+  test("a success after the order expired is recorded and flagged when the stock is gone", async () => {
     const o = await order(1);
     const started = await pay(o.id, {
       methodCode: codes.mtn,
@@ -645,6 +692,11 @@ describe("paying an order with a configured method", () => {
       where: { id: started.json().id },
     });
     assert.equal(payment.status, "EXPIRED");
+    // Article retiré de la vente entre-temps : la commande ne peut plus être confirmée.
+    await db.productVariant.update({
+      where: { id: f.variant },
+      data: { active: false },
+    });
     const late = mockEventBody({
       eventId: `test_${suffix}_late`,
       paymentId: payment.id,
@@ -654,6 +706,10 @@ describe("paying an order with a configured method", () => {
       currency: "XAF",
     });
     assert.equal((await signed(late)).json().outcome, "APPLIED");
+    await db.productVariant.update({
+      where: { id: f.variant },
+      data: { active: true },
+    });
     const flagged = await db.payment.findUniqueOrThrow({
       where: { id: payment.id },
     });

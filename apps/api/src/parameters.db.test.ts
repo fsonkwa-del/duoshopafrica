@@ -101,7 +101,8 @@ describe("regulatory parameters", () => {
       body.definitions.map((d) => [d.key, d.current?.value]),
     );
     assert.equal(current["order.payment_window"], "30 minutes");
-    assert.equal(current["payment.attempt_window"], "10 minutes");
+    // Portée à 15 minutes au lot 3 (nouvelle période, la valeur d'origine est close).
+    assert.equal(current["payment.attempt_window"], "15 minutes");
     assert.equal(current["claims.window"], "7 days");
     assert.equal(current["guest_cart.retention"], "30 days");
     assert.ok(

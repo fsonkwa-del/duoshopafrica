@@ -106,6 +106,13 @@ export default async function OrderPage({
                 </Notice>
               )}
               <p>{p.pending}</p>
+              {pending.nextAction?.type === "approve_on_phone" && (
+                <>
+                  {/* Sans JavaScript : la page se recharge seule pendant l'attente (lot 3). */}
+                  <meta httpEquiv="refresh" content="10" />
+                  <Notice>{p.approveOnPhone}</Notice>
+                </>
+              )}
               {pending.nextAction?.type === "redirect" &&
                 pending.nextAction.url.startsWith("https://") && (
                   <p>

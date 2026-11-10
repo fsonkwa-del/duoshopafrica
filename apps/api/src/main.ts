@@ -1,7 +1,8 @@
 import { createDatabase } from "@duoshop/database";
 import { storageFromEnv } from "@duoshop/media";
-import { providersFromEnv } from "@duoshop/payments";
+import { collectionFromEnv, providersFromEnv } from "@duoshop/payments";
 import { createApp } from "./app.js";
+import { assertCollectionMode } from "./collection.js";
 import { oidcSettingsFromEnv } from "./oidc.js";
 
 const port = Number(process.env.API_PORT ?? 4000);
@@ -11,6 +12,9 @@ const db = createDatabase();
 const oidc = oidcSettingsFromEnv(process.env);
 const storage = storageFromEnv(process.env);
 const providers = providersFromEnv(process.env);
+// Mode d'encaissement (lot 3) : refus de démarrer si le mode n'est pas servi ou pas autorisé.
+const collection = collectionFromEnv(process.env);
+await assertCollectionMode(db, collection, providers, process.env);
 const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
 const trustProxy = Number(process.env.TRUST_PROXY_HOPS ?? 0);
 if (!Number.isInteger(trustProxy) || trustProxy < 0 || trustProxy > 5)
@@ -24,6 +28,7 @@ const app = await createApp({
   ...(oidc ? { oidc } : {}),
   ...(storage ? { storage } : {}),
   providers,
+  collection,
   devLogin,
   trustProxy,
   ...(process.env.MEDIA_PUBLIC_BASE_URL

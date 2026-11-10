@@ -11,7 +11,9 @@ export type Permission =
   | "order:fulfil"
   | "earnings:read"
   | "claim:respond"
-  | "team:manage";
+  | "team:manage"
+  // Compte marchand du vendeur chez le prestataire (mode direct, lot 3) : propriétaire seul.
+  | "payments:configure";
 const grants: Record<StoreRole, readonly Permission[]> = {
   OWNER: [
     "store:read",
@@ -25,6 +27,7 @@ const grants: Record<StoreRole, readonly Permission[]> = {
     "earnings:read",
     "claim:respond",
     "team:manage",
+    "payments:configure",
   ],
   MANAGER: [
     "store:read",
@@ -48,6 +51,7 @@ const allowedWhile: Record<TenantStatus, readonly Permission[]> = {
     "store:configure",
     "catalog:write",
     "inventory:write",
+    "payments:configure",
   ],
   ACTIVE: [
     "store:read",
@@ -60,6 +64,7 @@ const allowedWhile: Record<TenantStatus, readonly Permission[]> = {
     "earnings:read",
     "claim:respond",
     "team:manage",
+    "payments:configure",
   ],
   // Suspendu : aucune action, mais le vendeur garde la vue de ce qui lui est dû.
   SUSPENDED: ["earnings:read"],

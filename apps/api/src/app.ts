@@ -1,6 +1,6 @@
 import type { Database } from "@duoshop/database";
 import type { ObjectStorage } from "@duoshop/media";
-import type { PaymentProviders } from "@duoshop/payments";
+import type { CollectionSettings, PaymentProviders } from "@duoshop/payments";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import Fastify from "fastify";
@@ -9,6 +9,7 @@ import { cartRoutes } from "./cart";
 import { catalogRoutes } from "./catalog";
 import { categoryRoutes } from "./categories";
 import { claimRoutes } from "./claims";
+import { collectionRoutes, defaultCollection } from "./collection";
 import { devLoginRoutes } from "./dev-login";
 import { financeRoutes } from "./finance";
 import { fulfilmentRoutes } from "./fulfilment";
@@ -35,6 +36,10 @@ export interface AppOptions {
   storage?: ObjectStorage;
   // Adaptateurs de paiement configurés (ADR 0007) ; aucun => aucun moyen proposé.
   providers?: PaymentProviders;
+  // Mode d'encaissement et clés des comptes marchands (lot 3) ; défaut : plateforme détentrice.
+  collection?: CollectionSettings;
+  // Variables d'environnement transmises aux adaptateurs des comptes vendeurs (mode direct).
+  env?: Record<string, string | undefined>;
   // Développement uniquement : profils de démonstration quand Zitadel est absent.
   devLogin?: boolean;
   // Nombre de reverse proxies de confiance devant l'API (IP réelle pour rate limit et logs).
@@ -49,6 +54,8 @@ export async function createApp({
   mediaBaseUrl,
   storage,
   providers = new Map(),
+  collection = defaultCollection,
+  env = process.env,
   devLogin = false,
   trustProxy = 0,
 }: AppOptions = {}) {
@@ -156,8 +163,19 @@ export async function createApp({
     });
     await app.register(categoryRoutes, { db, webOrigin });
     await app.register(cartRoutes, { db, webOrigin });
-    await app.register(orderRoutes, { db, webOrigin });
-    await app.register(paymentRoutes, { db, webOrigin, providers });
+    await app.register(orderRoutes, {
+      db,
+      webOrigin,
+      collectionMode: collection.mode,
+    });
+    await app.register(paymentRoutes, {
+      db,
+      webOrigin,
+      providers,
+      collection,
+      env,
+    });
+    await app.register(collectionRoutes, { db, webOrigin, collection, env });
     await app.register(fulfilmentRoutes, { db, webOrigin });
     await app.register(financeRoutes, { db, webOrigin });
     await app.register(parameterRoutes, { db, webOrigin });

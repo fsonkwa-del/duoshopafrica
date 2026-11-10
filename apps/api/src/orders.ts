@@ -324,9 +324,16 @@ async function refuse(reply: FastifyReply, err: unknown) {
 
 export async function orderRoutes(
   app: FastifyInstance,
-  options: { db: Database; webOrigin: string },
+  options: {
+    db: Database;
+    webOrigin: string;
+    collectionMode?: "PLATFORM_HELD" | "DIRECT_SELLER" | "PSP_ESCROW";
+  },
 ) {
   const { db, webOrigin } = options;
+  // Mode direct (lot 3) : chaque vendeur encaisse sur son propre compte, donc une commande ne
+  // regroupe qu'un vendeur.
+  const oneSellerPerOrder = options.collectionMode === "DIRECT_SELLER";
 
   // ---------- Options de remise de la boutique (vendeur) ----------
   app.post(
@@ -681,16 +688,17 @@ export async function orderRoutes(
         addressId?: string;
       };
       try {
-        return await asRuntime(db, { userId: principal.userId }, async (tx) =>
-          quoteView(
-            await computeQuote(
-              tx,
-              principal.userId,
-              body.deliveries,
-              body.addressId,
-            ),
-          ),
-        );
+        return await asRuntime(db, { userId: principal.userId }, async (tx) => {
+          const quote = await computeQuote(
+            tx,
+            principal.userId,
+            body.deliveries,
+            body.addressId,
+          );
+          if (oneSellerPerOrder && quote.groups.length > 1)
+            throw new CheckoutRefusal("one_seller_per_order");
+          return quoteView(quote);
+        });
       } catch (err) {
         return refuse(reply, err);
       }
@@ -772,6 +780,8 @@ export async function orderRoutes(
             body.deliveries,
             body.addressId,
           );
+          if (oneSellerPerOrder && quote.groups.length > 1)
+            throw new CheckoutRefusal("one_seller_per_order");
           if (quote.total.toString() !== body.expectedTotalMinor)
             throw new CheckoutRefusal("total_changed");
           // CGV en vigueur : acceptées explicitement, version figée sur la commande (ADR 0010).

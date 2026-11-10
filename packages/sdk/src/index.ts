@@ -857,6 +857,91 @@ export const getAccessLog = (baseUrl: string, sessionToken: string) =>
       createdAt: string;
     }[];
   }>(baseUrl, "/v1/admin/access-log", sessionToken);
+export interface PaymentAccountsDTO {
+  collectionMode: "PLATFORM_HELD" | "DIRECT_SELLER" | "PSP_ESCROW";
+  providers: string[];
+  accounts: {
+    id: string;
+    provider: string;
+    mode: "SANDBOX" | "LIVE" | "MOCK";
+    active: boolean;
+    updatedAt: string;
+  }[];
+}
+export const getPaymentAccounts = (
+  baseUrl: string,
+  sessionToken: string,
+  storeId: string,
+) =>
+  authorized<PaymentAccountsDTO>(
+    baseUrl,
+    `/v1/stores/${encodeURIComponent(storeId)}/payment-account`,
+    sessionToken,
+  );
+export const savePaymentAccount = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  storeId: string,
+  body: {
+    provider: string;
+    mode: string;
+    credentials: Record<string, string>;
+  },
+) =>
+  authorized<{ id: string; notifyUrl: string }>(
+    baseUrl,
+    `/v1/stores/${encodeURIComponent(storeId)}/payment-account`,
+    sessionToken,
+    { origin, body },
+  );
+export interface CollectionAuthorizationsDTO {
+  mode: "PLATFORM_HELD" | "DIRECT_SELLER" | "PSP_ESCROW";
+  role: string;
+  authorizations: {
+    id: string;
+    mode: string;
+    agrementReference: string;
+    expiresAt: string;
+    requestedAt: string;
+    approvedAt: string | null;
+    revokedAt: string | null;
+    requestedByMe: boolean;
+  }[];
+}
+export const getCollectionAuthorizations = (
+  baseUrl: string,
+  sessionToken: string,
+) =>
+  authorized<CollectionAuthorizationsDTO>(
+    baseUrl,
+    "/v1/admin/collection-authorizations",
+    sessionToken,
+  );
+export const requestCollectionAuthorization = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: { mode: string; agrementReference: string; expiresAt: string },
+) =>
+  authorized<{ id: string }>(
+    baseUrl,
+    "/v1/admin/collection-authorizations",
+    sessionToken,
+    { origin, body },
+  );
+export const approveCollectionAuthorization = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  id: string,
+) =>
+  authorized<{ outcome: string }>(
+    baseUrl,
+    `/v1/admin/collection-authorizations/${encodeURIComponent(id)}/approve`,
+    sessionToken,
+    { origin, body: {} },
+  );
 export const getParameters = (baseUrl: string, sessionToken: string) =>
   authorized<ParametersDTO>(baseUrl, "/v1/admin/parameters", sessionToken);
 export const proposeParameter = (
