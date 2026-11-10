@@ -489,13 +489,15 @@ describe("direct seller collection", () => {
       where: { claimId: claim.id },
     });
     assert.equal(refund.status, "SELLER_TO_EXECUTE");
+    // Reprise TVA comprise (lot 4) : 2 000 = 1 677 de revenu + 323 de TVA.
     assert.deepEqual(await lines("refund_decided", refund.id), [
-      { account: "COMMISSION_REVENUE", amountMinor: 2000n, tenantId: null },
+      { account: "COMMISSION_REVENUE", amountMinor: 1677n, tenantId: null },
       {
         account: "COMMISSION_RECEIVABLE",
         amountMinor: -2000n,
         tenantId: f.a.tenantId,
       },
+      { account: "VAT_COLLECTED", amountMinor: 323n, tenantId: null },
     ]);
   });
 });

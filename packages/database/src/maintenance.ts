@@ -39,3 +39,36 @@ export async function applyRetention(
     SELECT rule, affected FROM apply_retention(${mode === "ENFORCE"})`;
   return { mode, rules };
 }
+
+// Lot 4 (ADR 0012) : commissions constatées à la fin du délai de réclamation (règle figée
+// CLAIM_WINDOW_END). Connexion propriétaire : la fonction n'est pas ouverte au runtime.
+export async function recognizeDueCommissions(db: Database): Promise<number> {
+  const [row] = await db.$queryRaw<{ count: number }[]>`
+    SELECT recognize_due_commissions() AS count`;
+  return row?.count ?? 0;
+}
+
+// Factures et avoirs du mois précédent (heure de Douala), rejouable sans double facturation.
+// Bloqué tant que l'identité de la plateforme (raison sociale, NIU) n'est pas saisie.
+export async function issueMonthlyInvoices(
+  db: Database,
+  now = new Date(),
+): Promise<{ issued: number } | { blocked: "platform_identity_missing" }> {
+  const douala = new Date(now.getTime() + 3600_000);
+  const first = new Date(
+    Date.UTC(douala.getUTCFullYear(), douala.getUTCMonth() - 1, 1),
+  );
+  const last = new Date(
+    Date.UTC(douala.getUTCFullYear(), douala.getUTCMonth(), 0),
+  );
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  try {
+    const [row] = await db.$queryRaw<{ issued: number }[]>`
+      SELECT issue_commission_invoices(${iso(first)}::date, ${iso(last)}::date) AS issued`;
+    return { issued: row?.issued ?? 0 };
+  } catch (err) {
+    if (String(err).includes("platform_identity_missing"))
+      return { blocked: "platform_identity_missing" };
+    throw err;
+  }
+}

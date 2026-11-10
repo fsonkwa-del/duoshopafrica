@@ -789,3 +789,29 @@ Branche `compliance/lot-3-collection`, issue du lot 2.
 - `collection.test.ts` (4 tests unitaires) : configuration, capacités manquantes, chiffrement (mauvaise clé et contenu altéré refusés), simulateur interdit en production.
 - `payments.db.test.ts` : confirmation tardive (stock repris, `late_confirmed`) et signalement quand l'article n'est plus en vente.
 - Suites : lint, typecheck, 82 tests unitaires, 193 tests sur base réelle (base 19, API 172, worker 2).
+
+# Conformité — Lot 4 : comptabilité, TVA et factures (ADR 0012) — 10 novembre 2026
+
+Branche `compliance/lot-4-accounting`, issue du lot 3.
+
+## Livré
+
+- Correspondance SYSCOHADA saisie par la finance (aucune valeur proposée).
+- Frais du prestataire comptabilisés à l'encaissement, à la charge de la plateforme ou du vendeur.
+- TVA extraite de la commission (H13 bis), reprise proportionnelle sur remboursement.
+- Constatation de la commission à la remise ou à la fin du délai de réclamation, règle figée au paiement.
+- Factures et avoirs numérotés sans trou, PDF bilingue, paiement constaté. Émission bloquée tant que l'identité de la plateforme n'est pas saisie.
+- Exports CSV (grand livre, balance, TVA, factures) tracés.
+- Écrans : « Factures de commission » (avec exports) et « Correspondance SYSCOHADA » pour la finance ; factures dans « Revenus » pour le vendeur.
+- **Défaut trouvé et corrigé.** Le rapport financier ignorait le mode direct du lot 3 : il aurait signalé chaque paiement direct comme non comptabilisé. Il ne compte plus que les encaissements dans le rapprochement journalier, ce qui exclut les frais.
+- **Tests adaptés.** Les écritures de commission séparent désormais le revenu et la TVA. Vérifié à la main : 1 000 × 0,1925 / 1,1925 = 161,4, arrondi à 161.
+
+## Commandes réellement exécutées
+
+- `pnpm db:roundtrip` : « round trip ok (2484 schema facts) ».
+- `accounting.db.test.ts` (4 tests) :
+  - frais à 2 % à la charge du vendeur (400 sur 20 000), commission de 2 000 = 1 677 + 323 de TVA, aucun écart journalier ;
+  - règle `CLAIM_WINDOW_END` : rien avant le délai, constatation après, ancienne sous-commande restée en `HANDOVER` ;
+  - factures : 4 000 TTC, 646 de TVA, 3 354 HT ; seconde émission sans effet ; série sans trou ; avoir de 2 000 (dont 323 de TVA) après une réclamation acceptée ; PDF ; paiement constaté par FINANCE seule ; un avoir ne se paie pas ;
+  - correspondance et exports : FINANCE seule, BOM, en-têtes, numéro SYSCOHADA saisi présent, export tracé.
+- Suites : lint, typecheck, 82 tests unitaires, 197 tests sur base réelle (base 19, API 176, worker 2).

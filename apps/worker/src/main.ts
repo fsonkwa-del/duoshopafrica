@@ -3,9 +3,11 @@ import {
   applyRetention,
   createDatabase,
   expireUnpaidOrders,
+  issueMonthlyInvoices,
   pendingProviderPayments,
   purgeExpiredLoginAttempts,
   purgeStaleGuestCarts,
+  recognizeDueCommissions,
   releaseExpiredReservations,
 } from "@duoshop/database";
 import { storageFromEnv } from "@duoshop/media";
@@ -158,6 +160,25 @@ async function retention() {
 }
 await retention();
 const retentionTimer = setInterval(retention, RETENTION_EVERY_MS);
+// Comptabilité (lot 4) : commissions arrivées en fin de délai de réclamation, puis factures du
+// mois précédent (une passe par heure, sans effet une fois le mois facturé).
+async function accounting() {
+  try {
+    log({
+      job: "recognize_commissions",
+      recognized: await recognizeDueCommissions(db),
+    });
+  } catch (err) {
+    log({ job: "recognize_commissions", status: "failed", error: String(err) });
+  }
+  try {
+    log({ job: "issue_invoices", ...(await issueMonthlyInvoices(db)) });
+  } catch (err) {
+    log({ job: "issue_invoices", status: "failed", error: String(err) });
+  }
+}
+await accounting();
+const accountingTimer = setInterval(accounting, 3600_000);
 const timer = setInterval(purge, PURGE_EVERY_MS);
 const releaser = setInterval(releaseReservations, RELEASE_EVERY_MS);
 for (const signal of ["SIGINT", "SIGTERM"])
@@ -168,5 +189,6 @@ for (const signal of ["SIGINT", "SIGTERM"])
     clearInterval(mediaTimer);
     clearInterval(reconcileTimer);
     clearInterval(retentionTimer);
+    clearInterval(accountingTimer);
     await db.$disconnect();
   });

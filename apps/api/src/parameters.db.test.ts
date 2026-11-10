@@ -106,8 +106,9 @@ describe("regulatory parameters", () => {
     assert.equal(current["claims.window"], "7 days");
     assert.equal(current["guest_cart.retention"], "30 days");
     assert.ok(
+      // Identité de la plateforme (lot 4) : aucune valeur tant qu'elle n'est pas saisie.
       body.definitions.every(
-        (d) => d.current?.validationStatus === "A_VALIDER",
+        (d) => !d.current || d.current.validationStatus === "A_VALIDER",
       ),
     );
     assert.equal(await valueAt(new Date().toISOString()), "7 days");

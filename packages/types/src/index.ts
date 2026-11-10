@@ -468,7 +468,8 @@ export interface FinanceAnomalyDTO {
     | "payment_not_journaled"
     | "no_commission_rule"
     | "daily_mismatch"
-    | "unbalanced_journal";
+    | "unbalanced_journal"
+    | "invoice_overdue";
   reference: string;
   expected: string | null;
   posted: string | null;
@@ -484,6 +485,13 @@ export interface FinanceReportDTO {
     amount: string;
   }[];
   anomalies: FinanceAnomalyDTO[];
+  // Créances de commission sur les vendeurs (mode direct, lot 3).
+  receivables?: {
+    tenantId: string;
+    stores: string | null;
+    currency: string;
+    amount: string;
+  }[];
   daily: { day: string; settled: string; posted: string }[];
   // Dû vendeur gelé par des réclamations en cours.
   holds: {
@@ -492,6 +500,32 @@ export interface FinanceReportDTO {
     currency: string;
     amount: string;
   }[];
+}
+// Facture ou avoir de commission (lot 4, ADR 0012).
+export interface CommissionInvoiceDTO {
+  id: string;
+  kind: "INVOICE" | "CREDIT_NOTE";
+  number: string;
+  storeId: string;
+  storeName: string;
+  periodStart: string;
+  periodEnd: string;
+  totalTtc: MoneyDTO;
+  vat: MoneyDTO;
+  totalHt: MoneyDTO;
+  vatRate: string;
+  issuedAt: string;
+  dueAt: string;
+  paidAt: string | null;
+  paidReference: string | null;
+}
+export interface LedgerMappingDTO {
+  id: string;
+  account: string;
+  accountNumber: string;
+  label: string;
+  effectiveFrom: string;
+  validationStatus: "A_VALIDER" | "VALIDE";
 }
 export interface EarningsDTO {
   lines: {

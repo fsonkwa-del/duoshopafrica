@@ -1,6 +1,6 @@
 # ADR 0012 — Comptabilité SYSCOHADA, frais du prestataire, TVA et factures de commission
 
-Date : 2026-11-09. Statut : proposé (lot 4).
+Date : 2026-11-09. Statut : accepté le 2026-11-10 et livré (lot 4).
 
 ## Contexte
 
@@ -26,3 +26,26 @@ Le journal interne utilise 5 comptes provisoires (PSP_CLEARING, SELLER_PAYABLE, 
 
 - La contrainte d'équilibre différée reste la garantie centrale ; chaque nouvelle écriture est testée avec elle sous PostgreSQL 17.
 - Le rapport Finance gagne la TVA collectée, les frais et les créances vendeurs.
+
+## Mise en œuvre (10 novembre 2026)
+
+- **Migration `202611210001_accounting`.** Les fonctions de paiement, de remboursement, de frais et de rapport sont modifiées de façon ciblée ; le `down.sql` restaure leurs corps d'origine.
+- **Correspondance SYSCOHADA.** Table `LedgerAccountMapping`, saisie par FINANCE, datée, avec un statut de validation. **Aucune valeur n'est proposée par la plateforme** : les exports affichent « non renseigné » tant que l'expert-comptable n'a rien saisi.
+- **Frais du prestataire.**
+  - Paramètres `psp.fee_rate.<prestataire>` (Fapshi 3 %, À VALIDER) et `fees.borne_by` (PLATFORM par défaut, réglable par boutique).
+  - Journal `psp_fee` par sous-commande en mode plateforme : `PSP_FEES` ou `SELLER_PAYABLE`, contre `PSP_CLEARING`. Pour un paiement à rembourser, les frais sont à la charge de la plateforme. Aucun frais n'est passé en mode direct, où l'argent ne transite pas par la plateforme.
+- **TVA.** Hypothèse H13 bis : le taux de commission s'entend TVA comprise, et la TVA en est extraite au taux du jour de la constatation (`vat.commission_rate`, 19,25 %, À VALIDER). Le net vendeur et les contrôles existants sont donc inchangés. Une reprise sur remboursement reprend la TVA dans la même proportion.
+- **Constatation.** `commission.recognition` est figé sur la sous-commande au paiement.
+  - `HANDOVER` (défaut, comportement d'origine) : la commission est constatée à la remise.
+  - `CLAIM_WINDOW_END` : le worker la constate après le délai de réclamation, s'il n'y a aucune réclamation active. Une reprise faite avant porte sur la commission différée.
+- **Factures et avoirs.**
+  - Séries FC et AV, numérotation sans trou par exercice (compteur verrouillé dans la transaction).
+  - Une pièce par boutique et par mois, émise par le worker et rejouable : rien n'est facturé deux fois (index uniques partiels).
+  - Mentions du vendeur et de la plateforme figées sur la pièce ; PDF bilingue généré à la demande.
+  - Paiement constaté par FINANCE avec une référence.
+  - **L'émission est bloquée tant que la raison sociale et le NIU de la plateforme ne sont pas saisis** (`platform.legal_name`, `platform.niu`) : aucune identité n'est inventée.
+- **Exports CSV.** Grand livre, balance, journal de TVA, factures (BOM UTF-8, point-virgule, montants entiers), réservés à FINANCE et tracés dans `ConfigAudit`.
+- **Rapport financier corrigé.** Les paiements du mode direct (lot 3) n'y apparaissaient pas encore et auraient été signalés à tort comme non comptabilisés. Le rapport ajoute aussi les créances de commission par vendeur et les factures échues impayées.
+- **Non fait.**
+  - Suspension automatique d'un vendeur qui ne paie pas sa commission : seulement signalée dans le rapport (H34).
+  - Déclarations fiscales.

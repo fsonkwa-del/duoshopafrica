@@ -496,9 +496,11 @@ describe("posting a paid order", () => {
       );
       assert.equal(res.statusCode, 200, res.body);
     }
+    // Commission TVA comprise (lot 4) : 1 000 = 839 de revenu + 161 de TVA collectée (19,25 %).
     assert.deepEqual(await journalLines("commission_earned", so.id), [
       { account: "COMMISSION_DEFERRED", amountMinor: 1000n, tenantId: null },
-      { account: "COMMISSION_REVENUE", amountMinor: -1000n, tenantId: null },
+      { account: "COMMISSION_REVENUE", amountMinor: -839n, tenantId: null },
+      { account: "VAT_COLLECTED", amountMinor: -161n, tenantId: null },
     ]);
     const afterView = (
       await call("GET", `/v1/stores/${f.a.storeId}/earnings`, f.owner)

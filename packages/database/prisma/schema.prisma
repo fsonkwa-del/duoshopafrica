@@ -253,6 +253,7 @@ model Store {
   parameters RegulatoryParameter[]
   zoneFees StoreZoneFee[]
   paymentAccounts StorePaymentAccount[]
+  invoices CommissionInvoice[]
   @@unique([tenantId, id])
 }
 model StoreMember {
@@ -551,6 +552,10 @@ model SellerOrder {
   storeName String
   // Mentions légales du vendeur figées à l'achat (loi n° 2010/021, ADR 0015).
   sellerLegal Json?
+  // Lot 4 : règle de constatation figée au paiement, commission constatée et TVA incluse.
+  commissionRecognition String?
+  commissionRecognizedMinor BigInt?
+  commissionVatMinor BigInt?
   status OrderStatus @default(AWAITING_PAYMENT)
   deliveryMethod DeliveryMethod
   deliveryFeeMinor BigInt
@@ -827,6 +832,9 @@ model Refund {
   sellerDebitMinor BigInt
   currency String @db.Char(3)
   status RefundStatus @default(PENDING_PROVIDER)
+  // Lot 4 : TVA reprise et compte d'origine de la commission reprise (REVENUE ou DEFERRED).
+  commissionVatReversedMinor BigInt?
+  reversedFrom String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
   @@index([status, createdAt])
@@ -1027,4 +1035,66 @@ model CollectionModeAuthorization {
   approvedBy String? @db.Uuid
   approvedAt DateTime? @db.Timestamptz(3)
   revokedAt DateTime? @db.Timestamptz(3)
+}
+
+// ---------- Comptabilité et factures (lot 4, ADR 0012) ----------
+enum InvoiceKind {
+  INVOICE
+  CREDIT_NOTE
+}
+// Correspondance compte interne -> compte SYSCOHADA, saisie par la finance (aucune valeur inventée).
+model LedgerAccountMapping {
+  id String @id @default(uuid()) @db.Uuid
+  account LedgerAccount
+  accountNumber String
+  label String
+  effectiveFrom DateTime @db.Date
+  validationStatus ParameterStatus @default(A_VALIDER)
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([account, effectiveFrom])
+}
+model InvoiceCounter {
+  series String
+  fiscalYear Int
+  next Int @default(1)
+  @@id([series, fiscalYear])
+}
+model CommissionInvoice {
+  id String @id @default(uuid()) @db.Uuid
+  kind InvoiceKind
+  series String
+  fiscalYear Int
+  number Int
+  tenantId String @db.Uuid
+  storeId String @db.Uuid
+  periodStart DateTime @db.Date
+  periodEnd DateTime @db.Date
+  totalTtcMinor BigInt
+  vatMinor BigInt
+  totalHtMinor BigInt
+  vatRate String
+  currency String @db.Char(3)
+  seller Json
+  platform Json
+  issuedAt DateTime @default(now()) @db.Timestamptz(3)
+  dueAt DateTime @db.Timestamptz(3)
+  paidAt DateTime? @db.Timestamptz(3)
+  paidReference String?
+  store Store @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Restrict)
+  lines CommissionInvoiceLine[]
+  @@unique([series, fiscalYear, number])
+  @@index([storeId, issuedAt])
+}
+model CommissionInvoiceLine {
+  id String @id @default(uuid()) @db.Uuid
+  invoiceId String @db.Uuid
+  kind InvoiceKind
+  sellerOrderId String @db.Uuid
+  refundId String? @db.Uuid
+  orderReference String
+  totalTtcMinor BigInt
+  vatMinor BigInt
+  invoice CommissionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  @@index([invoiceId])
 }

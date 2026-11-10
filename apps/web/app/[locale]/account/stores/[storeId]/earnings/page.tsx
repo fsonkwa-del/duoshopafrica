@@ -1,11 +1,12 @@
 import { formatDateTime, formatMoney, isLocale, messages } from "@duoshop/i18n";
-import { getEarnings } from "@duoshop/sdk";
+import { getEarnings, getStoreInvoices } from "@duoshop/sdk";
 import type { MoneyDTO } from "@duoshop/types";
 import { Notice } from "@duoshop/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiUrl, sessionToken } from "../../../../../../lib/session";
 import { SellerNav } from "../../../../admin/admin-nav";
+import { InvoiceList } from "../../../../invoice-list";
 import { AccountShell, SignIn } from "../../../account-shell";
 
 export default async function Earnings({
@@ -20,6 +21,10 @@ export default async function Earnings({
   const path = `/account/stores/${storeId}/earnings`;
   const token = await sessionToken();
   const result = token ? await getEarnings(apiUrl, token, storeId) : null;
+  // Factures de commission (lot 4) émises chaque mois par la plateforme.
+  const invoices = token
+    ? await getStoreInvoices(apiUrl, token, storeId)
+    : null;
   if (!result || (!result.ok && result.status === 401))
     return <SignIn locale={locale} path={path} />;
   const back = (
@@ -108,6 +113,16 @@ export default async function Earnings({
             </tbody>
           </table>
         </div>
+      )}
+      {invoices?.ok && (
+        <section aria-labelledby="invoices">
+          <h2 id="invoices">{t.accounting.invoicesTitle}</h2>
+          <InvoiceList
+            locale={locale}
+            invoices={invoices.data.invoices}
+            pdfHref={(i) => `/v1/stores/${storeId}/invoices/${i.id}/pdf`}
+          />
+        </section>
       )}
     </AccountShell>
   );

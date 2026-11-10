@@ -5,6 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import Fastify from "fastify";
 import { accountRoutes } from "./account";
+import { accountingRoutes } from "./accounting";
 import { cartRoutes } from "./cart";
 import { catalogRoutes } from "./catalog";
 import { categoryRoutes } from "./categories";
@@ -176,6 +177,7 @@ export async function createApp({
       env,
     });
     await app.register(collectionRoutes, { db, webOrigin, collection, env });
+    await app.register(accountingRoutes, { db, webOrigin });
     await app.register(fulfilmentRoutes, { db, webOrigin });
     await app.register(financeRoutes, { db, webOrigin });
     await app.register(parameterRoutes, { db, webOrigin });

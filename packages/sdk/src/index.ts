@@ -11,6 +11,7 @@ import {
   type CategoryDTO,
   type ClaimDTO,
   type ClaimReasonDTO,
+  type CommissionInvoiceDTO,
   type CommissionRuleDTO,
   type DeliveryContactDTO,
   type DeliveryMethodDTO,
@@ -19,6 +20,7 @@ import {
   type EarningsDTO,
   type FinanceReportDTO,
   type HealthResponse,
+  type LedgerMappingDTO,
   type MeDTO,
   type MerchantDecisionDTO,
   type MoneyDTO,
@@ -941,6 +943,59 @@ export const approveCollectionAuthorization = (
     `/v1/admin/collection-authorizations/${encodeURIComponent(id)}/approve`,
     sessionToken,
     { origin, body: {} },
+  );
+export const getInvoices = (baseUrl: string, sessionToken: string) =>
+  authorized<{ invoices: CommissionInvoiceDTO[]; canConfigure: boolean }>(
+    baseUrl,
+    "/v1/admin/invoices",
+    sessionToken,
+  );
+export const markInvoicePaid = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  invoiceId: string,
+  reference: string,
+) =>
+  authorized<{ outcome: string }>(
+    baseUrl,
+    `/v1/admin/invoices/${encodeURIComponent(invoiceId)}/paid`,
+    sessionToken,
+    { origin, body: { reference } },
+  );
+export const getStoreInvoices = (
+  baseUrl: string,
+  sessionToken: string,
+  storeId: string,
+) =>
+  authorized<{ invoices: CommissionInvoiceDTO[] }>(
+    baseUrl,
+    `/v1/stores/${encodeURIComponent(storeId)}/invoices`,
+    sessionToken,
+  );
+export const getLedgerMapping = (baseUrl: string, sessionToken: string) =>
+  authorized<{
+    accounts: string[];
+    mappings: LedgerMappingDTO[];
+    canConfigure: boolean;
+  }>(baseUrl, "/v1/admin/ledger-mapping", sessionToken);
+export const saveLedgerMapping = (
+  baseUrl: string,
+  sessionToken: string,
+  origin: string,
+  body: {
+    account: string;
+    accountNumber: string;
+    label: string;
+    effectiveFrom: string;
+    validated: boolean;
+  },
+) =>
+  authorized<{ id: string }>(
+    baseUrl,
+    "/v1/admin/ledger-mapping",
+    sessionToken,
+    { origin, body },
   );
 export const getParameters = (baseUrl: string, sessionToken: string) =>
   authorized<ParametersDTO>(baseUrl, "/v1/admin/parameters", sessionToken);

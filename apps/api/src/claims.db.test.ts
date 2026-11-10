@@ -477,11 +477,15 @@ describe("answering and arbitrating", () => {
       select: { account: true, amountMinor: true },
       orderBy: { account: "asc" },
     });
+    // Commission reprise TVA comprise (lot 4) : 1 000 = 839 de revenu + 161 de TVA (19,25 %).
     assert.deepEqual(lines, [
       { account: "SELLER_PAYABLE", amountMinor: 19000n },
-      { account: "COMMISSION_REVENUE", amountMinor: 1000n },
+      { account: "COMMISSION_REVENUE", amountMinor: 839n },
       { account: "REFUND_PAYABLE", amountMinor: -20000n },
+      { account: "VAT_COLLECTED", amountMinor: 161n },
     ]);
+    assert.equal(refund.commissionVatReversedMinor, 161n);
+    assert.equal(refund.reversedFrom, "REVENUE");
     const e = await earnings();
     const line = e.lines.find(
       (l: { sellerOrderId: string }) =>
